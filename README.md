@@ -5,14 +5,16 @@ Agent Skills for integrating [Outlit](https://outlit.ai) customer journey analyt
 ## Installation
 
 ```sh
-npx add-skill outlit/outlit-agent-skills
+npx add-skill outlitai/outlit-agent-skills
+# or
+bunx add-skill outlitai/outlit-agent-skills
 ```
 
 ## Available Skills
 
 | Skill | Description |
 |-------|-------------|
-| outlit-integration | Complete SDK integration for React, Next.js, Vue, Node.js |
+| outlit-sdk | Complete SDK integration for React, Next.js, Vue, Node.js |
 
 ## Usage
 

@@ -14,7 +14,7 @@ jobs:
 
       - name: Validate SKILL.md frontmatter
         run: |
-          SKILL_FILE="skills/outlit-integration/SKILL.md"
+          SKILL_FILE="skills/outlit-sdk/SKILL.md"
           if [ ! -f "$SKILL_FILE" ]; then
             echo "ERROR: $SKILL_FILE not found"
             exit 1
@@ -42,7 +42,7 @@ jobs:
 
       - name: Check referenced files exist
         run: |
-          SKILL_DIR="skills/outlit-integration"
+          SKILL_DIR="skills/outlit-sdk"
           MISSING=0
 
           for ref in references/frameworks.md references/auth-providers.md \

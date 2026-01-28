@@ -1,5 +1,5 @@
 ---
-name: outlit-integration
+name: outlit-sdk
 description: Integrate Outlit SDK for customer journey tracking and analytics. Triggers when users need to add Outlit to React, Next.js, Vue, Svelte, Angular, Astro, Node.js, Express, or Fastify apps. Covers SDK installation (@outlit/browser, @outlit/node), auth provider integration (Clerk, NextAuth, Supabase, Auth0, Firebase), GDPR consent management, event tracking, user lifecycle events (activate, engaged, inactive), customer billing status (trialing, paid, churned), and Stripe webhook integration.
 ---
 
@@ -17,6 +17,16 @@ Outlit is a customer journey platform that tracks users from anonymous visitors 
 4. Integrating with authentication providers
 5. Implementing consent management (GDPR compliance)
 6. Adding custom event tracking
+
+## Installation
+
+To add this skill to your Claude Code environment:
+
+```sh
+npx add-skill outlitai/outlit-agent-skills
+# or
+bunx add-skill outlitai/outlit-agent-skills
+```
 
 ## Integration Workflow
 
