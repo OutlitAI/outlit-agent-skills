@@ -1,0 +1,69 @@
+name: Validate Skills
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate SKILL.md frontmatter
+        run: |
+          SKILL_FILE="skills/outlit-integration/SKILL.md"
+          if [ ! -f "$SKILL_FILE" ]; then
+            echo "ERROR: $SKILL_FILE not found"
+            exit 1
+          fi
+
+          # Check YAML frontmatter exists
+          if ! head -1 "$SKILL_FILE" | grep -q "^---$"; then
+            echo "ERROR: Missing opening frontmatter delimiter"
+            exit 1
+          fi
+
+          # Check name field
+          if ! grep -q "^name:" "$SKILL_FILE"; then
+            echo "ERROR: Missing 'name' in frontmatter"
+            exit 1
+          fi
+
+          # Check description field
+          if ! grep -q "^description:" "$SKILL_FILE"; then
+            echo "ERROR: Missing 'description' in frontmatter"
+            exit 1
+          fi
+
+          echo "OK: SKILL.md frontmatter valid"
+
+      - name: Check referenced files exist
+        run: |
+          SKILL_DIR="skills/outlit-integration"
+          MISSING=0
+
+          for ref in references/frameworks.md references/auth-providers.md \
+                     references/consent-management.md references/api-reference.md \
+                     references/patterns.md scripts/detect_project.py scripts/install_sdk.sh; do
+            if [ ! -f "$SKILL_DIR/$ref" ]; then
+              echo "ERROR: Missing $SKILL_DIR/$ref"
+              MISSING=$((MISSING + 1))
+            else
+              echo "OK: $ref"
+            fi
+          done
+
+          exit $MISSING
+
+      - name: Check root entry points
+        run: |
+          for f in CLAUDE.md AGENTS.md README.md LICENSE; do
+            if [ ! -f "$f" ]; then
+              echo "ERROR: Missing $f"
+              exit 1
+            fi
+            echo "OK: $f"
+          done
