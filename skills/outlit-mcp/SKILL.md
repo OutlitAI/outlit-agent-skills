@@ -5,7 +5,7 @@ description: Use when querying Outlit customer data via MCP tools (outlit_*). Tr
 
 # Outlit MCP Server
 
-Query customer intelligence data through 9 MCP tools covering customer profiles, revenue metrics, activity timelines, analytics queries, and raw SQL access.
+Query customer intelligence data through 7 MCP tools covering customer profiles, revenue metrics, activity timelines, and raw SQL analytics access.
 
 ## Quick Start
 
@@ -18,31 +18,31 @@ digraph quickstart {
 
     customer_list [label="Multiple\ncustomers"];
     customer_single [label="Single\ncustomer"];
-    analytics [label="Metrics &\ntrends"];
-    custom [label="Custom\nSQL"];
+    analytics [label="Custom\nanalytics"];
+    discover [label="Schema\ndiscovery"];
 
     list_tool [label="outlit_list_customers" shape=ellipse style=filled fillcolor=lightblue];
     detail_tool [label="outlit_get_customer" shape=ellipse style=filled fillcolor=lightblue];
-    query_tool [label="outlit_query" shape=ellipse style=filled fillcolor=lightgreen];
-    sql_tool [label="outlit_sql" shape=ellipse style=filled fillcolor=lightyellow];
+    query_tool [label="outlit_query" shape=ellipse style=filled fillcolor=lightyellow];
+    schema_tool [label="outlit_schema" shape=ellipse style=filled fillcolor=lightgray];
 
     start -> customer_list -> list_tool;
     start -> customer_single -> detail_tool;
     start -> analytics -> query_tool;
-    start -> custom -> sql_tool;
+    start -> discover -> schema_tool;
 }
 ```
 
 ### First Call: Schema Discovery
 
-Before writing queries, discover available data:
+Before writing SQL queries, discover available tables and columns:
 
 ```json
-// Discover all query types with their parameters
-{ "tool": "outlit_list_query_types" }
-
 // Discover SQL tables and columns
 { "tool": "outlit_schema" }
+
+// Discover available data entities
+{ "tool": "outlit_list_entities" }
 ```
 
 ### Common Patterns
@@ -59,23 +59,21 @@ Before writing queries, discover available data:
 }
 ```
 
-**Revenue breakdown:**
+**Revenue breakdown (SQL):**
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "revenue_metrics",
-  "params": { "metric": "mrr" },
-  "groupBy": ["billingStatus"]
+  "sql": "SELECT billing_status, count(*) as customers, sum(mrr_cents)/100 as mrr_dollars FROM customer_dimensions GROUP BY 1 ORDER BY 3 DESC"
 }
 ```
 
-**Custom SQL:**
+**Event analytics (SQL):**
 
 ```json
 {
-  "tool": "outlit_sql",
-  "sql": "SELECT event_type, count(*) FROM events GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
+  "tool": "outlit_query",
+  "sql": "SELECT event_type, count(*) FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
 }
 ```
 
@@ -95,7 +93,6 @@ digraph tool_selection {
     list [label="Browse/filter customers"];
     single [label="Single customer deep dive"];
     aggregate [label="Aggregated metrics"];
-    raw [label="Custom analytics"];
     discover [label="Explore schema"];
 
     // Tool outcomes
@@ -103,16 +100,13 @@ digraph tool_selection {
     get_customer [label="outlit_get_customer" shape=ellipse style=filled fillcolor=lightblue];
     get_timeline [label="outlit_get_timeline" shape=ellipse style=filled fillcolor=lightblue];
     get_revenue [label="outlit_get_customer_revenue" shape=ellipse style=filled fillcolor=lightblue];
-    query [label="outlit_query (13 types)" shape=ellipse style=filled fillcolor=lightgreen];
-    sql [label="outlit_sql" shape=ellipse style=filled fillcolor=lightyellow];
-    schema [label="outlit_schema" shape=ellipse style=filled fillcolor=lightyellow];
+    query [label="outlit_query (SQL)" shape=ellipse style=filled fillcolor=lightyellow];
+    schema [label="outlit_schema" shape=ellipse style=filled fillcolor=lightgray];
     list_entities [label="outlit_list_entities" shape=ellipse style=filled fillcolor=lightgray];
-    list_query_types [label="outlit_list_query_types" shape=ellipse style=filled fillcolor=lightgray];
 
     start -> list [label="segments, at-risk lists"];
     start -> single [label="specific customer"];
-    start -> aggregate [label="reports, dashboards"];
-    start -> raw [label="SQL, complex joins"];
+    start -> aggregate [label="reports, dashboards, SQL"];
     start -> discover [label="what's available?"];
 
     list -> list_customers;
@@ -121,13 +115,11 @@ digraph tool_selection {
     single -> get_timeline [label="activity history"];
     single -> get_revenue [label="billing data"];
 
-    aggregate -> query;
-
-    raw -> sql [label="write SQL"];
-    raw -> schema [label="see columns first"];
+    aggregate -> query [label="write SQL"];
+    aggregate -> schema [label="see columns first"];
 
     discover -> list_entities;
-    discover -> list_query_types;
+    discover -> schema;
 }
 ```
 
@@ -139,11 +131,9 @@ digraph tool_selection {
 | `outlit_get_customer` | Single customer details | `customer`, `include[]`, `timeframe` |
 | `outlit_get_timeline` | Activity history | `customer`, `channels[]`, `eventTypes[]` |
 | `outlit_get_customer_revenue` | Revenue + attribution | `customer`, `includeAttribution` |
-| `outlit_query` | Analytics (13 types) | `queryType`, `params`, `groupBy` |
-| `outlit_sql` | Raw SQL queries | `sql`, `limit` |
+| `outlit_query` | Raw SQL queries | `sql`, `limit` |
 | `outlit_schema` | SQL table schemas | `table` (optional) |
 | `outlit_list_entities` | Available entities | (none) |
-| `outlit_list_query_types` | Query type definitions | (none) |
 
 ---
 
@@ -151,8 +141,8 @@ digraph tool_selection {
 
 | Reference | When to Read |
 |-----------|--------------|
-| [Query Patterns](references/query-patterns.md) | Building `outlit_query` calls, JSON examples, all 13 query types |
-| [SQL Guide](references/sql-guide.md) | Writing raw SQL, security model, available tables/columns |
+| [Query Patterns](references/query-patterns.md) | SQL examples for common analytics: MRR, cohorts, events, churn |
+| [SQL Guide](references/sql-guide.md) | Complete table schemas, security model, ClickHouse tips |
 | [Workflows](references/workflows.md) | Multi-step analysis: churn risk, revenue dashboards, segmentation |
 | [Troubleshooting](references/troubleshooting.md) | Error codes, common issues, debugging strategies |
 | [Responses](references/responses.md) | Full response examples, parsing guidance |
@@ -266,37 +256,7 @@ Get revenue metrics and attribution for a customer.
 
 ---
 
-## Analytics: outlit_query
-
-Execute analytics queries across 13 query types with flexible filtering and grouping.
-
-All query types accept: `queryType` (required), `timeframe` (7d/14d/30d/90d/1y/all, default 30d), `params`, `groupBy`, `limit` (1-1000), and `cursor`. See [Query Patterns](references/query-patterns.md) for full parameter documentation.
-
-### Query Types
-
-| Type | Data Source | Purpose | Key Params |
-|------|-------------|---------|------------|
-| `customer_cohort` | Prisma | Find customers by filters | `filters`, `include` |
-| `customer_metrics` | Prisma | Count customers by segment | `metric` |
-| `contact_journey` | Prisma | Journey stage analysis | `metric`, `stages` |
-| `revenue_metrics` | Prisma | MRR, LTV, ARPU, churn | `metric`, `segmentBy` |
-| `revenue_attribution` | Prisma | Revenue by channel | `metric` |
-| `revenue_trends` | Prisma | Revenue over time | `granularity`, `metric` |
-| `event_aggregates` | ClickHouse | Event counts | `eventTypes`, `channels` |
-| `event_trends` | ClickHouse | Event time series | `granularity`, `channels` |
-| `feature_usage` | ClickHouse | Feature adoption | `features`, `metric` |
-| `session_metrics` | ClickHouse | Sessions, pageviews | `metric` |
-| `communication_summary` | ClickHouse | Email, call, slack activity | `channels`, `metric` |
-| `company_insights` | AI | Company analysis | `customerId`, `includeBlocks` |
-| `contact_insights` | AI | Contact analysis | `customerId`, `includeBlocks` |
-
-> **Note:** ClickHouse queries return 503 if the analytics service is unavailable. Handle this gracefully.
-
-See [Query Patterns](references/query-patterns.md) for detailed examples of each query type.
-
----
-
-## Raw SQL: outlit_sql
+## Raw SQL: outlit_query
 
 Execute custom SQL queries against analytics data with built-in security.
 
@@ -312,6 +272,34 @@ Execute custom SQL queries against analytics data with built-in security.
 Use `outlit_schema` to discover columns before writing queries.
 
 **Security:** Only SELECT queries allowed. Organization data isolated via row policies. External access functions blocked.
+
+### Quick SQL Examples
+
+**MRR by billing status:**
+```json
+{
+  "tool": "outlit_query",
+  "sql": "SELECT billing_status, count(*) as customers, sum(mrr_cents)/100 as mrr FROM customer_dimensions GROUP BY 1"
+}
+```
+
+**Daily event volume:**
+```json
+{
+  "tool": "outlit_query",
+  "sql": "SELECT toDate(occurred_at) as day, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY GROUP BY 1 ORDER BY 1"
+}
+```
+
+**Top customers by activity:**
+```json
+{
+  "tool": "outlit_query",
+  "sql": "SELECT customer_id, customer_domain, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 25"
+}
+```
+
+See [Query Patterns](references/query-patterns.md) for comprehensive SQL examples covering all common analytics use cases.
 
 See [SQL Guide](references/sql-guide.md) for complete table schemas, security model, and error handling.
 
@@ -341,15 +329,13 @@ List all queryable data entities.
 { "tool": "outlit_list_entities" }
 ```
 
-### outlit_list_query_types
+### outlit_get_entity_schema
 
-Get all `outlit_query` types with parameter schemas.
+Get detailed schema for a specific entity.
 
 ```json
-{ "tool": "outlit_list_query_types" }
+{ "tool": "outlit_get_entity_schema", "entity": "customer" }
 ```
-
-**Use this to discover:** Valid `queryType` values, available `groupBy` fields per type, and parameter options/defaults.
 
 ---
 
@@ -403,22 +389,21 @@ All list endpoints use cursor-based pagination:
 
 ## Best Practices
 
-1. **Start with schema discovery** — Call `outlit_list_query_types` or `outlit_schema` first
+1. **Start with schema discovery** — Call `outlit_schema` before writing SQL
 2. **Use filters at the source** — Filter in the query, not after fetching
 3. **Request only needed includes** — Omit `include` options you don't need
-4. **Prefer query tool for aggregations** — Don't loop over customers for metrics
-5. **Handle ClickHouse unavailability** — Event/session queries may return 503
+4. **Prefer customer tools for single lookups** — Don't use SQL for single customer queries
+5. **Add time filters to SQL** — Always include `WHERE occurred_at >= ...` for event queries
 6. **Convert cents to dollars** — Divide monetary values by 100 for display
-7. **Use SQL for custom analytics** — When predefined queries don't fit
+7. **Use LIMIT in SQL** — Cap result sets to avoid large data transfers
 
 ## Known Limitations
 
-1. **No cross-query filtering**: Cannot filter `feature_usage` by customer cohort in one query
-2. **Feature names not enumerated**: Use `outlit_list_query_types` to discover features
-3. **ClickHouse availability**: `event_*`, `feature_usage`, `session_metrics` return 503 if unavailable
-4. **MRR filtering is post-fetch**: May be slower on large datasets
-5. **Timeline requires customer**: Cannot query timeline across all customers
-6. **SQL is read-only**: No INSERT, UPDATE, DELETE operations
+1. **SQL is read-only**: No INSERT, UPDATE, DELETE operations
+2. **Organization isolation**: Cannot query data from other organizations
+3. **Timeline requires customer**: Cannot query timeline across all customers
+4. **MRR filtering is post-fetch**: May be slower on large datasets in list_customers
+5. **Event queries require time filters**: Queries without date ranges scan all data
 
 ---
 
@@ -432,7 +417,7 @@ See [Troubleshooting Guide](references/troubleshooting.md) for detailed solution
 |-------|----------|
 | 401 Unauthorized | Check authentication, re-authorize MCP connection |
 | 404 Not Found | Verify customer ID/domain exists |
-| 503 Service Unavailable | ClickHouse offline, use Prisma-based queries |
 | Empty results | Widen filters, check timeframe |
-| Slow queries | Add filters, reduce limit, avoid `all` timeframe |
+| Slow queries | Add filters, reduce limit, add time constraints |
 | SQL table not found | Use `outlit_schema` to see available tables |
+| SQL syntax error | Check ClickHouse syntax (not MySQL/PostgreSQL) |

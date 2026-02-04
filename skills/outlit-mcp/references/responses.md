@@ -12,10 +12,9 @@ Full response examples for each Outlit MCP tool to understand data shapes and pa
 | `outlit_get_customer` | [→](#outlit_get_customer-with-all-includes) |
 | `outlit_get_timeline` | [→](#outlit_get_timeline) |
 | `outlit_get_customer_revenue` | [→](#outlit_get_customer_revenue) |
-| `outlit_query` | [→](#outlit_query) |
-| `outlit_sql` | [→](#outlit_sql) |
+| `outlit_query` (SQL) | [→](#outlit_query-sql) |
 | `outlit_schema` | [→](#outlit_schema) |
-| `outlit_list_query_types` | [→](#outlit_list_query_types) |
+| `outlit_list_entities` | [→](#outlit_list_entities) |
 | Empty Results | [→](#empty-results) |
 | Parsing Tips | [→](#parsing-tips) |
 
@@ -252,146 +251,7 @@ Full response examples for each Outlit MCP tool to understand data shapes and pa
 
 ---
 
-## outlit_query
-
-### revenue_metrics
-
-```json
-{
-  "queryType": "revenue_metrics",
-  "timeframe": "30d",
-  "executedAt": "2025-01-30T10:00:00Z",
-  "results": {
-    "data": [
-      { "billingStatus": "PAYING", "mrr": 12500000, "customerCount": 45 },
-      { "billingStatus": "TRIALING", "mrr": 0, "customerCount": 12 },
-      { "billingStatus": "CHURNED", "mrr": 0, "customerCount": 8 }
-    ],
-    "aggregates": {
-      "totalMrr": 12500000,
-      "totalCustomers": 65
-    }
-  },
-  "metadata": {
-    "rowCount": 3,
-    "queryDurationMs": 145,
-    "dataSource": "prisma"
-  }
-}
-```
-
-### customer_cohort
-
-```json
-{
-  "queryType": "customer_cohort",
-  "timeframe": "90d",
-  "executedAt": "2025-01-30T10:05:00Z",
-  "results": {
-    "data": [
-      {
-        "id": "cust_abc123",
-        "name": "Acme Corp",
-        "domain": "acme.com",
-        "type": "COMPANY",
-        "status": "ACTIVE",
-        "billingStatus": "PAYING",
-        "firstSeenAt": "2024-06-15T10:30:00Z",
-        "lastActivityAt": "2025-01-28T14:22:00Z",
-        "currentMrr": 500000,
-        "contacts": [
-          { "email": "john@acme.com", "name": "John Smith", "journeyStage": "ENGAGED" }
-        ]
-      }
-    ],
-    "pagination": {
-      "cursor": "eyJpZCI6ImN1c3RfYWJjMTIzIn0=",
-      "hasMore": true,
-      "total": 45
-    }
-  },
-  "metadata": {
-    "rowCount": 1,
-    "queryDurationMs": 234,
-    "dataSource": "prisma"
-  }
-}
-```
-
-### event_aggregates
-
-```json
-{
-  "queryType": "event_aggregates",
-  "timeframe": "30d",
-  "executedAt": "2025-01-30T10:10:00Z",
-  "results": {
-    "data": [
-      { "channel": "EMAIL", "count": 15420 },
-      { "channel": "SLACK", "count": 8930 },
-      { "channel": "CALENDAR", "count": 2340 },
-      { "channel": "CALL", "count": 890 }
-    ],
-    "aggregates": {
-      "totalCount": 27580
-    }
-  },
-  "metadata": {
-    "rowCount": 4,
-    "queryDurationMs": 89,
-    "dataSource": "clickhouse"
-  }
-}
-```
-
-### company_insights
-
-```json
-{
-  "queryType": "company_insights",
-  "timeframe": "30d",
-  "executedAt": "2025-01-30T10:15:00Z",
-  "results": {
-    "data": [
-      {
-        "customerId": "cust_abc123",
-        "customerName": "Acme Corp",
-        "customerDomain": "acme.com",
-        "companyId": "company_456",
-        "companyName": "ACME Inc",
-        "hasInsights": true,
-        "generatedAt": "2025-01-15T10:00:00Z",
-        "sourceModel": "gpt-4",
-        "confidenceScore": 0.92,
-        "companyContext": "Enterprise software company focused on developer tools. Recently raised Series B funding. Expanding engineering team significantly.",
-        "positioningPlaybook": "Position as a scalable solution for their growing engineering needs.",
-        "sharpQuestions": [
-          "How are you planning to onboard the new engineering hires?",
-          "What's your timeline for the developer platform expansion?"
-        ],
-        "landmines": [
-          "Competitor X has strong relationship with their CTO",
-          "Previous bad experience with similar vendors"
-        ]
-      }
-    ],
-    "aggregates": {
-      "total": 45,
-      "withInsights": 38,
-      "withoutInsights": 7
-    }
-  },
-  "metadata": {
-    "rowCount": 1,
-    "queryDurationMs": 156,
-    "dataSource": "prisma"
-  }
-}
-```
-
----
-
-## outlit_sql
+## outlit_query (SQL)
 
 ### Successful Query
 
@@ -407,6 +267,24 @@ Full response examples for each Outlit MCP tool to understand data shapes and pa
   "metadata": {
     "rowsReturned": 4,
     "executionTimeMs": 47,
+    "truncated": false
+  }
+}
+```
+
+### Aggregation Query
+
+```json
+{
+  "success": true,
+  "data": [
+    { "billing_status": "PAYING", "customers": 45, "mrr_dollars": 125000 },
+    { "billing_status": "TRIALING", "customers": 12, "mrr_dollars": 0 },
+    { "billing_status": "CHURNED", "customers": 8, "mrr_dollars": 0 }
+  ],
+  "metadata": {
+    "rowsReturned": 3,
+    "executionTimeMs": 34,
     "truncated": false
   }
 }
@@ -508,48 +386,30 @@ Full response examples for each Outlit MCP tool to understand data shapes and pa
 
 ---
 
-## outlit_list_query_types
+## outlit_list_entities
 
 ```json
 {
-  "queryTypes": [
+  "entities": [
     {
-      "type": "customer_cohort",
-      "description": "Find customers matching specified filters",
-      "dataSource": "prisma",
-      "parameters": {
-        "filters": {
-          "status": ["PROVISIONAL", "ACTIVE", "CHURNED", "MERGED"],
-          "billingStatus": ["NONE", "TRIALING", "PAYING", "CHURNED"],
-          "type": ["COMPANY", "INDIVIDUAL"],
-          "hasActivityInLast": ["7d", "14d", "30d", "90d"],
-          "noActivityInLast": ["7d", "14d", "30d", "90d"],
-          "mrrAbove": "number",
-          "mrrBelow": "number"
-        },
-        "include": ["revenue", "contacts"]
-      },
-      "groupByOptions": ["status", "billingStatus", "type"]
+      "name": "customer",
+      "description": "Companies and individuals tracked in Outlit",
+      "operations": ["list", "get", "query"]
     },
     {
-      "type": "revenue_metrics",
-      "description": "Calculate MRR, LTV, ARPU, and churn metrics",
-      "dataSource": "prisma",
-      "parameters": {
-        "metric": ["mrr", "ltv", "arpu", "churn"],
-        "segmentBy": ["billingStatus", "attributionChannel", "customerType"]
-      },
-      "groupByOptions": ["billingStatus"]
+      "name": "contact",
+      "description": "Individual contacts associated with customers",
+      "operations": ["list", "get"]
     },
     {
-      "type": "event_aggregates",
-      "description": "Count events by type, channel, or customer",
-      "dataSource": "clickhouse",
-      "parameters": {
-        "eventTypes": "array of event type strings",
-        "channels": ["EMAIL", "SLACK", "INTERCOM", "CALENDAR", "CALL", "DOCUMENT"]
-      },
-      "groupByOptions": ["eventType", "channel", "customerId"]
+      "name": "activity",
+      "description": "Timeline events and customer interactions",
+      "operations": ["query"]
+    },
+    {
+      "name": "revenue",
+      "description": "Subscription and billing data",
+      "operations": ["get", "query"]
     }
   ]
 }
@@ -568,28 +428,6 @@ Full response examples for each Outlit MCP tool to understand data shapes and pa
     "hasMore": false,
     "nextCursor": null,
     "total": 0
-  }
-}
-```
-
-### Query Results
-
-```json
-{
-  "queryType": "customer_cohort",
-  "timeframe": "30d",
-  "executedAt": "2025-01-30T10:20:00Z",
-  "results": {
-    "data": [],
-    "pagination": {
-      "hasMore": false,
-      "total": 0
-    }
-  },
-  "metadata": {
-    "rowCount": 0,
-    "queryDurationMs": 12,
-    "dataSource": "prisma"
   }
 }
 ```
@@ -636,11 +474,11 @@ do {
 } while (response.pagination.hasMore);
 ```
 
-### Checking Data Source
+### Checking SQL Truncation
 
 ```javascript
-// ClickHouse queries may be unavailable
-if (response.metadata.dataSource === 'clickhouse') {
-  // May return 503 if ClickHouse is offline
+if (response.metadata.truncated) {
+  // Add more WHERE filters or increase limit (max 10000)
+  console.log('Results were truncated, consider refining query');
 }
 ```

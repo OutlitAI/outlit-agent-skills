@@ -1,743 +1,570 @@
-# Query Patterns Reference
+# SQL Query Patterns Reference
 
-Comprehensive examples and parameter documentation for all 13 `outlit_query` types.
+Comprehensive SQL examples for common analytics use cases using the `outlit_query` tool.
 
 ---
 
 ## Quick Index
 
-| Query Type | Purpose | Jump to |
-|-----------|---------|---------|
-| `customer_cohort` | Find customers by filters | [→](#customer_cohort) |
-| `customer_metrics` | Count customers by segment | [→](#customer_metrics) |
-| `contact_journey` | Journey stage analysis | [→](#contact_journey) |
-| `revenue_metrics` | MRR, LTV, ARPU, churn | [→](#revenue_metrics) |
-| `revenue_attribution` | Revenue by channel | [→](#revenue_attribution) |
-| `revenue_trends` | Revenue over time | [→](#revenue_trends) |
-| `event_aggregates` | Event counts | [→](#event_aggregates) |
-| `event_trends` | Event time series | [→](#event_trends) |
-| `feature_usage` | Feature adoption | [→](#feature_usage) |
-| `session_metrics` | Sessions, pageviews | [→](#session_metrics) |
-| `communication_summary` | Email, call, slack activity | [→](#communication_summary) |
-| `company_insights` | AI company analysis | [→](#company_insights) |
-| `contact_insights` | AI contact analysis | [→](#contact_insights) |
+| Analytics Category | Purpose | Jump to |
+|-------------------|---------|---------|
+| Customer Cohorts | Find customers by filters | [→](#customer-cohorts) |
+| Customer Metrics | Count customers by segment | [→](#customer-metrics) |
+| Revenue Metrics | MRR, LTV, ARPU, churn | [→](#revenue-metrics) |
+| Revenue Attribution | Revenue by channel | [→](#revenue-attribution) |
+| Revenue Trends | Revenue over time | [→](#revenue-trends) |
+| Event Aggregates | Event counts | [→](#event-aggregates) |
+| Event Trends | Event time series | [→](#event-trends) |
+| Feature Usage | Feature adoption | [→](#feature-usage) |
+| Session Metrics | Sessions, pageviews | [→](#session-metrics) |
+| Communication Summary | Email, call, slack activity | [→](#communication-summary) |
+| Cohort Analysis | Acquisition cohorts | [→](#cohort-analysis) |
+| Cross-Table Analysis | JOINs and complex queries | [→](#cross-table-analysis) |
 
 ---
 
-## Global Parameters
+## Available Tables
 
-All query types accept these parameters:
+| Table | Description | Key Columns |
+|-------|-------------|-------------|
+| `customer_dimensions` | Customer attributes | `customer_id`, `billing_status`, `mrr_cents`, `plan` |
+| `events` | Activity events | `event_type`, `event_channel`, `customer_id`, `occurred_at` |
+| `user_dimensions` | User attributes | `user_id`, `customer_id`, `email`, `name` |
+| `mrr_snapshots` | Daily MRR history | `customer_id`, `snapshot_date`, `mrr_cents` |
 
-| Parameter | Type | Values | Default |
-|-----------|------|--------|---------|
-| `queryType` | string | Required - see table above | — |
-| `timeframe` | enum | 7d, 14d, 30d, 90d, 1y, all | 30d |
-| `params` | object | Query-specific parameters | {} |
-| `groupBy` | array | Dimension fields to group by | [] |
-| `limit` | number | 1-1000 | 100 |
-| `cursor` | string | Pagination token | null |
+Use `outlit_schema` to see full column definitions.
 
 ---
 
-## Prisma-Based Queries
+## Customer Cohorts
 
-### customer_cohort
+Find and filter customers matching specific criteria.
 
-Find and filter customers with optional data includes.
+### At-Risk Paying Customers
 
-**Parameters:**
+Customers who are paying but haven't been active recently.
 
-| Parameter | Type | Values |
-|-----------|------|--------|
-| `params.filters.status` | array | PROVISIONAL, ACTIVE, CHURNED, MERGED |
-| `params.filters.billingStatus` | array | NONE, TRIALING, PAYING, CHURNED |
-| `params.filters.type` | array | COMPANY, INDIVIDUAL |
-| `params.filters.hasActivityInLast` | enum | 7d, 14d, 30d, 90d |
-| `params.filters.noActivityInLast` | enum | 7d, 14d, 30d, 90d |
-| `params.filters.mrrAbove` | number | Min MRR in cents |
-| `params.filters.mrrBelow` | number | Max MRR in cents |
-| `params.filters.attributionChannel` | array | Channel names |
-| `params.include` | array | revenue, contacts |
-| `params.orderBy` | string | Sort field |
-| `params.orderDirection` | enum | asc, desc |
-
-**GroupBy Options:** `status`, `billingStatus`, `type`
-
-**Example 1 - At-risk paying customers:**
 ```json
 {
-  "queryType": "customer_cohort",
-  "timeframe": "90d",
-  "params": {
-    "filters": {
-      "billingStatus": ["PAYING"],
-      "noActivityInLast": "30d"
-    },
-    "include": ["revenue", "contacts"]
-  }
+  "tool": "outlit_query",
+  "sql": "SELECT customer_id, name, domain, mrr_cents/100 as mrr_dollars, last_activity_at, dateDiff('day', last_activity_at, now()) as days_inactive FROM customer_dimensions WHERE billing_status = 'PAYING' AND last_activity_at < now() - INTERVAL 30 DAY ORDER BY mrr_cents DESC LIMIT 25"
 }
 ```
 
-**Example 2 - High-value enterprise customers:**
+### High-Value Enterprise Customers
+
+Top customers by MRR.
+
 ```json
 {
-  "queryType": "customer_cohort",
-  "params": {
-    "filters": {
-      "billingStatus": ["PAYING"],
-      "type": ["COMPANY"],
-      "mrrAbove": 100000
-    },
-    "include": ["revenue"],
-    "orderBy": "currentMrr",
-    "orderDirection": "desc"
-  },
-  "limit": 50
+  "tool": "outlit_query",
+  "sql": "SELECT customer_id, name, domain, mrr_cents/100 as mrr_dollars, plan, billing_status FROM customer_dimensions WHERE billing_status = 'PAYING' AND mrr_cents >= 100000 ORDER BY mrr_cents DESC LIMIT 50"
 }
 ```
 
-**Example 3 - Churned customers by acquisition channel:**
+### Trial Customers with Recent Activity
+
+Active trial customers who might convert.
+
 ```json
 {
-  "queryType": "customer_cohort",
-  "timeframe": "1y",
-  "params": {
-    "filters": {
-      "status": ["CHURNED"],
-      "billingStatus": ["CHURNED"]
-    },
-    "include": ["revenue"]
-  },
-  "groupBy": ["status"]
+  "tool": "outlit_query",
+  "sql": "SELECT customer_id, name, domain, first_seen_at, last_activity_at FROM customer_dimensions WHERE billing_status = 'TRIALING' AND last_activity_at >= now() - INTERVAL 7 DAY ORDER BY last_activity_at DESC"
 }
 ```
 
-**Example 4 - Trial customers with recent activity:**
+### Churned Customers by Acquisition Channel
+
+Analyze which channels have highest churn.
+
 ```json
 {
-  "queryType": "customer_cohort",
-  "params": {
-    "filters": {
-      "billingStatus": ["TRIALING"],
-      "hasActivityInLast": "7d"
-    },
-    "include": ["contacts"]
-  }
+  "tool": "outlit_query",
+  "sql": "SELECT attribution_channel, count(*) as churned_customers, sum(mrr_cents)/100 as lost_mrr FROM customer_dimensions WHERE billing_status = 'CHURNED' AND churned_at >= now() - INTERVAL 90 DAY GROUP BY 1 ORDER BY 2 DESC"
+}
+```
+
+### Customers by Industry
+
+Segment by company attributes.
+
+```json
+{
+  "tool": "outlit_query",
+  "sql": "SELECT industry, count(*) as customers, sum(mrr_cents)/100 as total_mrr, avg(mrr_cents)/100 as avg_mrr FROM customer_dimensions WHERE billing_status = 'PAYING' AND industry != '' GROUP BY 1 ORDER BY 3 DESC"
 }
 ```
 
 ---
 
-### customer_metrics
+## Customer Metrics
 
 Aggregate customer counts by segments.
 
-**Parameters:**
+### Customer Count by Billing Status
 
-| Parameter | Type | Values |
-|-----------|------|--------|
-| `params.metric` | enum | count, distribution |
-
-**GroupBy Options:** `status`, `billingStatus`, `type`, `attributionChannel`
-
-**Example 1 - Customer count by billing status:**
 ```json
 {
-  "queryType": "customer_metrics",
-  "params": { "metric": "count" },
-  "groupBy": ["billingStatus"]
+  "tool": "outlit_query",
+  "sql": "SELECT billing_status, count(*) as customer_count FROM customer_dimensions GROUP BY 1 ORDER BY 2 DESC"
 }
 ```
 
-**Example 2 - Distribution by customer type:**
+### Distribution by Customer Type
+
 ```json
 {
-  "queryType": "customer_metrics",
-  "timeframe": "90d",
-  "params": { "metric": "distribution" },
-  "groupBy": ["type"]
+  "tool": "outlit_query",
+  "sql": "SELECT CASE WHEN contact_count = 1 THEN 'INDIVIDUAL' ELSE 'COMPANY' END as customer_type, count(*) as customers, sum(mrr_cents)/100 as total_mrr FROM customer_dimensions WHERE billing_status = 'PAYING' GROUP BY 1"
 }
 ```
 
-**Example 3 - Multi-dimension breakdown:**
+### Multi-Dimension Breakdown
+
 ```json
 {
-  "queryType": "customer_metrics",
-  "params": { "metric": "count" },
-  "groupBy": ["billingStatus", "type"]
+  "tool": "outlit_query",
+  "sql": "SELECT billing_status, plan, count(*) as customers FROM customer_dimensions WHERE plan != '' GROUP BY 1, 2 ORDER BY 1, 3 DESC"
 }
 ```
 
----
+### Customers by Company Size
 
-### contact_journey
-
-Analyze contact journey stages and conversions.
-
-**Parameters:**
-
-| Parameter | Type | Values |
-|-----------|------|--------|
-| `params.metric` | enum | distribution, funnel, conversion |
-| `params.stages` | array | Journey stage names |
-| `params.groupBy` | enum | channel, source |
-
-**GroupBy Options:** `journeyStage`
-
-**Journey Stages:** DISCOVERED, SIGNED_UP, ACTIVATED, ENGAGED, INACTIVE
-
-**Example 1 - Journey stage distribution:**
 ```json
 {
-  "queryType": "contact_journey",
-  "params": { "metric": "distribution" }
-}
-```
-
-**Example 2 - Funnel analysis:**
-```json
-{
-  "queryType": "contact_journey",
-  "params": {
-    "metric": "funnel",
-    "stages": ["DISCOVERED", "SIGNED_UP", "ACTIVATED", "ENGAGED"]
-  }
-}
-```
-
-**Example 3 - Stage conversion rates:**
-```json
-{
-  "queryType": "contact_journey",
-  "timeframe": "90d",
-  "params": { "metric": "conversion" }
+  "tool": "outlit_query",
+  "sql": "SELECT company_size, count(*) as customers, avg(mrr_cents)/100 as avg_mrr FROM customer_dimensions WHERE billing_status = 'PAYING' AND company_size != '' GROUP BY 1 ORDER BY 2 DESC"
 }
 ```
 
 ---
 
-### revenue_metrics
+## Revenue Metrics
 
 Calculate MRR, LTV, ARPU, and churn metrics.
 
-**Parameters:**
+### Total MRR
 
-| Parameter | Type | Values |
-|-----------|------|--------|
-| `params.metric` | enum | mrr, ltv, arpu, churn |
-| `params.segmentBy` | enum | billingStatus, attributionChannel, customerType |
-
-**GroupBy Options:** `billingStatus`
-
-**Example 1 - Total MRR:**
 ```json
 {
-  "queryType": "revenue_metrics",
-  "params": { "metric": "mrr" }
+  "tool": "outlit_query",
+  "sql": "SELECT sum(mrr_cents)/100 as total_mrr, count(*) as paying_customers FROM customer_dimensions WHERE billing_status = 'PAYING'"
 }
 ```
 
-**Example 2 - MRR by billing status:**
+### MRR by Billing Status
+
 ```json
 {
-  "queryType": "revenue_metrics",
-  "params": { "metric": "mrr" },
-  "groupBy": ["billingStatus"]
+  "tool": "outlit_query",
+  "sql": "SELECT billing_status, count(*) as customers, sum(mrr_cents)/100 as mrr_dollars FROM customer_dimensions GROUP BY 1 ORDER BY 3 DESC"
 }
 ```
 
-**Example 3 - ARPU calculation:**
+### MRR by Plan
+
 ```json
 {
-  "queryType": "revenue_metrics",
-  "params": { "metric": "arpu" }
+  "tool": "outlit_query",
+  "sql": "SELECT plan, count(*) as customers, sum(mrr_cents)/100 as total_mrr, avg(mrr_cents)/100 as avg_mrr FROM customer_dimensions WHERE billing_status = 'PAYING' AND plan != '' GROUP BY 1 ORDER BY 3 DESC"
 }
 ```
 
-**Example 4 - MRR by acquisition channel:**
+### ARPU Calculation
+
+Average revenue per user.
+
 ```json
 {
-  "queryType": "revenue_metrics",
-  "params": {
-    "metric": "mrr",
-    "segmentBy": "attributionChannel"
-  }
+  "tool": "outlit_query",
+  "sql": "SELECT sum(mrr_cents)/100 / count(*) as arpu_dollars FROM customer_dimensions WHERE billing_status = 'PAYING' AND mrr_cents > 0"
 }
 ```
 
-**Example 5 - Churn rate:**
+### Lifetime Revenue Distribution
+
 ```json
 {
-  "queryType": "revenue_metrics",
-  "timeframe": "90d",
-  "params": { "metric": "churn" }
+  "tool": "outlit_query",
+  "sql": "SELECT CASE WHEN lifetime_revenue_cents < 100000 THEN 'Under $1K' WHEN lifetime_revenue_cents < 1000000 THEN '$1K-$10K' WHEN lifetime_revenue_cents < 10000000 THEN '$10K-$100K' ELSE 'Over $100K' END as ltv_bucket, count(*) as customers, sum(lifetime_revenue_cents)/100 as total_ltv FROM customer_dimensions WHERE lifetime_revenue_cents > 0 GROUP BY 1 ORDER BY 3 DESC"
+}
+```
+
+### Churn Analysis
+
+```json
+{
+  "tool": "outlit_query",
+  "sql": "SELECT toStartOfMonth(churned_at) as churn_month, count(*) as churned_customers, sum(mrr_cents)/100 as churned_mrr FROM customer_dimensions WHERE churned_at IS NOT NULL AND churned_at >= now() - INTERVAL 12 MONTH GROUP BY 1 ORDER BY 1 DESC"
 }
 ```
 
 ---
 
-### revenue_attribution
+## Revenue Attribution
 
 Analyze revenue by acquisition channel.
 
-**Parameters:**
+### Revenue by Channel
 
-| Parameter | Type | Values |
-|-----------|------|--------|
-| `params.metric` | enum | revenue, customers, conversion |
-
-**GroupBy Options:** `attributionChannel`
-
-**Example 1 - Revenue by channel:**
 ```json
 {
-  "queryType": "revenue_attribution",
-  "params": { "metric": "revenue" }
+  "tool": "outlit_query",
+  "sql": "SELECT attribution_channel, count(*) as customers, sum(mrr_cents)/100 as total_mrr, avg(mrr_cents)/100 as avg_mrr FROM customer_dimensions WHERE billing_status = 'PAYING' AND attribution_channel != '' GROUP BY 1 ORDER BY 3 DESC"
 }
 ```
 
-**Example 2 - Customer acquisition by channel:**
+### Customer Acquisition by Channel
+
 ```json
 {
-  "queryType": "revenue_attribution",
-  "params": { "metric": "customers" }
+  "tool": "outlit_query",
+  "sql": "SELECT attribution_channel, toStartOfMonth(first_seen_at) as month, count(*) as new_customers FROM customer_dimensions WHERE attribution_channel != '' AND first_seen_at >= now() - INTERVAL 12 MONTH GROUP BY 1, 2 ORDER BY 2 DESC, 3 DESC"
 }
 ```
 
-**Example 3 - Channel conversion efficiency:**
+### Channel Conversion Efficiency
+
 ```json
 {
-  "queryType": "revenue_attribution",
-  "timeframe": "1y",
-  "params": { "metric": "conversion" }
+  "tool": "outlit_query",
+  "sql": "SELECT attribution_channel, count(*) as total_customers, countIf(billing_status = 'PAYING') as paying_customers, countIf(billing_status = 'PAYING') * 100.0 / count(*) as conversion_rate FROM customer_dimensions WHERE attribution_channel != '' GROUP BY 1 ORDER BY 4 DESC"
 }
 ```
 
 ---
 
-### revenue_trends
+## Revenue Trends
 
 Track revenue over time with configurable granularity.
 
-**Parameters:**
+### Monthly MRR Trend
 
-| Parameter | Type | Values |
-|-----------|------|--------|
-| `params.metric` | enum | mrr, revenue, customers |
-| `params.granularity` | enum | day, week, month |
-
-**GroupBy Options:** `period`
-
-**Example 1 - Monthly MRR trend:**
 ```json
 {
-  "queryType": "revenue_trends",
-  "timeframe": "1y",
-  "params": {
-    "metric": "mrr",
-    "granularity": "month"
-  }
+  "tool": "outlit_query",
+  "sql": "SELECT snapshot_date, sum(mrr_cents)/100 as total_mrr FROM mrr_snapshots WHERE snapshot_date >= today() - 365 GROUP BY 1 ORDER BY 1"
 }
 ```
 
-**Example 2 - Daily customer acquisition:**
+### Daily MRR (Last 30 Days)
+
 ```json
 {
-  "queryType": "revenue_trends",
-  "timeframe": "30d",
-  "params": {
-    "metric": "customers",
-    "granularity": "day"
-  }
+  "tool": "outlit_query",
+  "sql": "SELECT snapshot_date, sum(mrr_cents)/100 as total_mrr, count(distinct customer_id) as paying_customers FROM mrr_snapshots WHERE snapshot_date >= today() - 30 GROUP BY 1 ORDER BY 1"
 }
 ```
 
-**Example 3 - Weekly revenue:**
+### MRR by Plan Over Time
+
 ```json
 {
-  "queryType": "revenue_trends",
-  "timeframe": "90d",
-  "params": {
-    "metric": "revenue",
-    "granularity": "week"
-  }
+  "tool": "outlit_query",
+  "sql": "SELECT snapshot_date, plan, sum(mrr_cents)/100 as mrr FROM mrr_snapshots WHERE snapshot_date >= today() - 90 AND plan != '' GROUP BY 1, 2 ORDER BY 1, 3 DESC"
+}
+```
+
+### Month-over-Month Growth
+
+```json
+{
+  "tool": "outlit_query",
+  "sql": "WITH monthly AS (SELECT toStartOfMonth(snapshot_date) as month, max(sum(mrr_cents)) as mrr FROM mrr_snapshots GROUP BY month, snapshot_date) SELECT month, mrr/100 as mrr_dollars FROM monthly ORDER BY 1 DESC LIMIT 12"
+}
+```
+
+### Customer MRR History
+
+```json
+{
+  "tool": "outlit_query",
+  "sql": "SELECT snapshot_date, mrr_cents/100 as mrr, plan, billing_status FROM mrr_snapshots WHERE customer_id = 'cust_123' ORDER BY 1"
 }
 ```
 
 ---
 
-## ClickHouse-Based Queries
-
-> **Note:** These queries require ClickHouse to be available. They return 503 if the analytics service is unavailable.
-
-### event_aggregates
+## Event Aggregates
 
 Count events by type, channel, or customer.
 
-**Parameters:**
+### Event Counts by Type
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `params.eventTypes` | array | Filter by event types |
-| `params.channels` | array | Filter by channels |
-
-**GroupBy Options:** `eventType`, `channel`, `customerId`
-
-**Channels:** EMAIL, SLACK, INTERCOM, CALENDAR, CALL, DOCUMENT
-
-**Example 1 - Event counts by type:**
 ```json
 {
-  "queryType": "event_aggregates",
-  "timeframe": "30d",
-  "groupBy": ["eventType"]
+  "tool": "outlit_query",
+  "sql": "SELECT event_type, count(*) as event_count FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY GROUP BY 1 ORDER BY 2 DESC LIMIT 20"
 }
 ```
 
-**Example 2 - Activity by channel:**
+### Activity by Channel
+
 ```json
 {
-  "queryType": "event_aggregates",
-  "timeframe": "7d",
-  "params": {
-    "channels": ["EMAIL", "SLACK", "CALENDAR"]
-  },
-  "groupBy": ["channel"]
+  "tool": "outlit_query",
+  "sql": "SELECT event_channel, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY GROUP BY 1 ORDER BY 2 DESC"
 }
 ```
 
-**Example 3 - Top customers by event volume:**
+### Top Customers by Event Volume
+
 ```json
 {
-  "queryType": "event_aggregates",
-  "timeframe": "30d",
-  "groupBy": ["customerId"],
-  "limit": 25
+  "tool": "outlit_query",
+  "sql": "SELECT customer_id, customer_domain, count(*) as event_count FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 25"
 }
 ```
 
-**Example 4 - Specific event types:**
+### Specific Event Types
+
 ```json
 {
-  "queryType": "event_aggregates",
-  "timeframe": "30d",
-  "params": {
-    "eventTypes": ["pageview", "form_submission", "button_click"]
-  },
-  "groupBy": ["eventType"]
+  "tool": "outlit_query",
+  "sql": "SELECT event_type, count(*) as occurrences FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_type IN ('pageview', 'form_submission', 'button_click', 'signup') GROUP BY 1 ORDER BY 2 DESC"
+}
+```
+
+### Events by Customer and Channel
+
+```json
+{
+  "tool": "outlit_query",
+  "sql": "SELECT customer_domain, event_channel, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 7 DAY AND event_channel IN ('EMAIL', 'SLACK', 'CALENDAR') GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 50"
 }
 ```
 
 ---
 
-### event_trends
+## Event Trends
 
 Time-series event data with configurable granularity.
 
-**Parameters:**
+### Daily Event Volume
 
-| Parameter | Type | Values |
-|-----------|------|--------|
-| `params.granularity` | enum | hour, day, week, month |
-| `params.eventTypes` | array | Event type names |
-| `params.channels` | array | Channel names |
-
-**GroupBy Options:** `period`, `channel`, `eventType`
-
-**Example 1 - Daily event volume:**
 ```json
 {
-  "queryType": "event_trends",
-  "timeframe": "30d",
-  "params": {
-    "granularity": "day"
-  }
+  "tool": "outlit_query",
+  "sql": "SELECT toDate(occurred_at) as day, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY GROUP BY 1 ORDER BY 1"
 }
 ```
 
-**Example 2 - Hourly trends by channel:**
+### Hourly Trends (Last 7 Days)
+
 ```json
 {
-  "queryType": "event_trends",
-  "timeframe": "7d",
-  "params": {
-    "granularity": "hour",
-    "channels": ["EMAIL", "SLACK"]
-  },
-  "groupBy": ["channel"]
+  "tool": "outlit_query",
+  "sql": "SELECT toStartOfHour(occurred_at) as hour, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 7 DAY GROUP BY 1 ORDER BY 1"
 }
 ```
 
-**Example 3 - Weekly event type distribution:**
+### Weekly Event Trends by Channel
+
 ```json
 {
-  "queryType": "event_trends",
-  "timeframe": "90d",
-  "params": {
-    "granularity": "week",
-    "eventTypes": ["pageview", "signup", "purchase"]
-  },
-  "groupBy": ["eventType"]
+  "tool": "outlit_query",
+  "sql": "SELECT toStartOfWeek(occurred_at) as week, event_channel, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 90 DAY GROUP BY 1, 2 ORDER BY 1, 3 DESC"
+}
+```
+
+### Event Type Distribution Over Time
+
+```json
+{
+  "tool": "outlit_query",
+  "sql": "SELECT toDate(occurred_at) as day, event_type, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 14 DAY AND event_type IN ('pageview', 'signup', 'purchase') GROUP BY 1, 2 ORDER BY 1, 3 DESC"
 }
 ```
 
 ---
 
-### feature_usage
+## Feature Usage
 
-Analyze feature adoption and usage frequency.
+Analyze feature adoption and usage patterns.
 
-**Parameters:**
+### Feature Adoption (Unique Users)
 
-| Parameter | Type | Values |
-|-----------|------|--------|
-| `params.features` | array | Feature names to analyze |
-| `params.metric` | enum | adoption, frequency, retention, dau, mau |
-
-**GroupBy Options:** `feature`, `customerId`
-
-**Example 1 - Feature adoption rates:**
 ```json
 {
-  "queryType": "feature_usage",
-  "timeframe": "30d",
-  "params": {
-    "features": ["dashboard_view", "export_pdf", "api_calls"],
-    "metric": "adoption"
-  }
+  "tool": "outlit_query",
+  "sql": "SELECT event_type as feature, count(DISTINCT user_id) as unique_users, count(*) as total_uses FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_type LIKE 'feature_%' GROUP BY 1 ORDER BY 2 DESC"
 }
 ```
 
-**Example 2 - Usage frequency:**
+### Usage Frequency by Feature
+
 ```json
 {
-  "queryType": "feature_usage",
-  "timeframe": "90d",
-  "params": {
-    "metric": "frequency"
-  },
-  "limit": 20
+  "tool": "outlit_query",
+  "sql": "SELECT event_type as feature, count(*) as uses, count(DISTINCT customer_id) as customers, count(*) / count(DISTINCT customer_id) as uses_per_customer FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_type IN ('dashboard_view', 'export_pdf', 'api_calls', 'report_generated') GROUP BY 1 ORDER BY 2 DESC"
 }
 ```
 
-**Example 3 - Feature retention:**
+### Daily/Weekly Active Users
+
 ```json
 {
-  "queryType": "feature_usage",
-  "timeframe": "90d",
-  "params": {
-    "features": ["dashboard_view"],
-    "metric": "retention"
-  }
+  "tool": "outlit_query",
+  "sql": "SELECT toDate(occurred_at) as day, count(DISTINCT user_id) as dau, count(DISTINCT customer_id) as dac FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY GROUP BY 1 ORDER BY 1"
 }
 ```
 
-**Example 4 - Daily/Monthly active users:**
+### Feature Usage by Customer Segment
+
 ```json
 {
-  "queryType": "feature_usage",
-  "timeframe": "30d",
-  "params": {
-    "metric": "dau"
-  }
+  "tool": "outlit_query",
+  "sql": "SELECT cd.plan, e.event_type as feature, count(*) as uses FROM events e JOIN customer_dimensions cd ON e.customer_id = cd.customer_id WHERE e.occurred_at >= now() - INTERVAL 30 DAY AND e.event_type LIKE 'feature_%' AND cd.plan != '' GROUP BY 1, 2 ORDER BY 1, 3 DESC"
 }
 ```
 
 ---
 
-### session_metrics
+## Session Metrics
 
-Analyze sessions, pageviews, bounce rate, and engagement.
+Analyze sessions, pageviews, and engagement.
 
-**Parameters:**
+### Total Pageviews
 
-| Parameter | Type | Values |
-|-----------|------|--------|
-| `params.metric` | enum | sessions, pageviews, bounce_rate, avg_session_duration |
-
-**GroupBy Options:** `customerId`, `path`, `source`
-
-**Example 1 - Pageview analysis:**
 ```json
 {
-  "queryType": "session_metrics",
-  "timeframe": "30d",
-  "params": { "metric": "pageviews" }
+  "tool": "outlit_query",
+  "sql": "SELECT count(*) as pageviews, count(DISTINCT session_id) as sessions, count(DISTINCT user_id) as unique_users FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_type = 'pageview'"
 }
 ```
 
-**Example 2 - Session duration:**
+### Sessions per Customer
+
 ```json
 {
-  "queryType": "session_metrics",
-  "timeframe": "7d",
-  "params": { "metric": "avg_session_duration" }
+  "tool": "outlit_query",
+  "sql": "SELECT customer_domain, count(DISTINCT session_id) as sessions, count(*) as pageviews FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_type = 'pageview' GROUP BY 1 ORDER BY 2 DESC LIMIT 25"
 }
 ```
 
-**Example 3 - Bounce rate:**
+### Session Duration Approximation
+
 ```json
 {
-  "queryType": "session_metrics",
-  "timeframe": "30d",
-  "params": { "metric": "bounce_rate" }
+  "tool": "outlit_query",
+  "sql": "SELECT session_id, min(occurred_at) as session_start, max(occurred_at) as session_end, dateDiff('second', min(occurred_at), max(occurred_at)) as duration_seconds, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 7 DAY AND session_id != '' GROUP BY 1 HAVING count(*) > 1 ORDER BY 4 DESC LIMIT 100"
 }
 ```
 
-**Example 4 - Sessions by source:**
+### Top Pages
+
 ```json
 {
-  "queryType": "session_metrics",
-  "timeframe": "30d",
-  "params": { "metric": "sessions" },
-  "groupBy": ["source"]
+  "tool": "outlit_query",
+  "sql": "SELECT JSONExtractString(properties, 'path') as page_path, count(*) as views FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_type = 'pageview' GROUP BY 1 ORDER BY 2 DESC LIMIT 20"
 }
 ```
 
 ---
 
-### communication_summary
+## Communication Summary
 
 Analyze email, call, Slack, and meeting activity.
 
-**Parameters:**
+### Communication Volume by Channel
 
-| Parameter | Type | Values |
-|-----------|------|--------|
-| `params.channels` | array | email, slack, call, meeting |
-| `params.metric` | enum | volume, response_time, participants |
-
-**GroupBy Options:** `channel`, `customerId`, `contactId`
-
-**Example 1 - Communication volume by channel:**
 ```json
 {
-  "queryType": "communication_summary",
-  "timeframe": "30d",
-  "params": {
-    "channels": ["email", "slack", "call", "meeting"],
-    "metric": "volume"
-  }
+  "tool": "outlit_query",
+  "sql": "SELECT event_channel, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_channel IN ('EMAIL', 'SLACK', 'CALENDAR', 'CALL') GROUP BY 1 ORDER BY 2 DESC"
 }
 ```
 
-**Example 2 - Response time analysis:**
+### Communication by Customer
+
 ```json
 {
-  "queryType": "communication_summary",
-  "timeframe": "30d",
-  "params": {
-    "channels": ["email"],
-    "metric": "response_time"
-  }
+  "tool": "outlit_query",
+  "sql": "SELECT customer_domain, event_channel, count(*) as communications FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_channel IN ('EMAIL', 'SLACK', 'CALENDAR', 'CALL') GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 50"
 }
 ```
 
-**Example 3 - Communication by customer:**
+### Email Activity Trends
+
 ```json
 {
-  "queryType": "communication_summary",
-  "params": {
-    "metric": "volume"
-  },
-  "groupBy": ["customerId"],
-  "limit": 30
+  "tool": "outlit_query",
+  "sql": "SELECT toDate(occurred_at) as day, event_type, count(*) as emails FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_channel = 'EMAIL' GROUP BY 1, 2 ORDER BY 1, 3 DESC"
+}
+```
+
+### Meeting Activity
+
+```json
+{
+  "tool": "outlit_query",
+  "sql": "SELECT toStartOfWeek(occurred_at) as week, count(*) as meetings, count(DISTINCT customer_id) as customers FROM events WHERE occurred_at >= now() - INTERVAL 90 DAY AND event_channel = 'CALENDAR' GROUP BY 1 ORDER BY 1"
 }
 ```
 
 ---
 
-## AI-Powered Queries
+## Cohort Analysis
 
-### company_insights
+Analyze customers by acquisition cohort.
 
-Retrieve AI-generated company analysis from enrichment data.
+### Customers by Acquisition Month
 
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `params.customerId` | string | Specific customer ID |
-| `params.includeBlocks` | array | Insight sections to include |
-| `params.hasInsights` | boolean | Filter to companies with insights |
-
-**Include Blocks:** `companyContext`, `positioningPlaybook`, `sharpQuestions`, `landmines`, `citations`
-
-**Example 1 - All company insights:**
 ```json
 {
-  "queryType": "company_insights",
-  "limit": 25
+  "tool": "outlit_query",
+  "sql": "SELECT toStartOfMonth(first_seen_at) as cohort_month, count(*) as total_customers, countIf(billing_status = 'PAYING') as paying_customers, sum(mrr_cents)/100 as total_mrr FROM customer_dimensions GROUP BY 1 ORDER BY 1 DESC"
 }
 ```
 
-**Example 2 - Specific company:**
+### Cohort Retention
+
 ```json
 {
-  "queryType": "company_insights",
-  "params": {
-    "customerId": "cust_123",
-    "includeBlocks": ["companyContext", "sharpQuestions", "landmines"]
-  }
+  "tool": "outlit_query",
+  "sql": "SELECT toStartOfMonth(first_seen_at) as cohort, count(*) as acquired, countIf(billing_status = 'PAYING') as still_paying, countIf(billing_status = 'CHURNED') as churned, countIf(billing_status = 'CHURNED') * 100.0 / count(*) as churn_rate FROM customer_dimensions WHERE first_seen_at >= now() - INTERVAL 12 MONTH GROUP BY 1 ORDER BY 1"
 }
 ```
 
-**Example 3 - Only companies with insights:**
+### Time to First Payment
+
 ```json
 {
-  "queryType": "company_insights",
-  "params": {
-    "hasInsights": true
-  },
-  "limit": 50
+  "tool": "outlit_query",
+  "sql": "SELECT toStartOfMonth(first_seen_at) as cohort, avg(dateDiff('day', first_seen_at, created_at)) as avg_days_to_payment FROM customer_dimensions WHERE billing_status = 'PAYING' AND first_seen_at >= now() - INTERVAL 12 MONTH GROUP BY 1 ORDER BY 1"
 }
 ```
 
 ---
 
-### contact_insights
+## Cross-Table Analysis
 
-Retrieve AI-generated contact analysis from enrichment data.
+Complex queries joining multiple tables.
 
-**Parameters:**
+### Customer Activity with Revenue
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `params.customerId` | string | Filter by customer |
-| `params.contactId` | string | Specific contact |
-| `params.includeBlocks` | array | Insight sections to include |
-| `params.hasInsights` | boolean | Filter to contacts with insights |
-
-**Include Blocks:** `personOverview`, `dealRelevance`, `whoTheyAre`, `productPositioning`, `leveragePoints`, `socialSignal`, `citations`
-
-**Example 1 - Contacts with insights:**
 ```json
 {
-  "queryType": "contact_insights",
-  "params": { "hasInsights": true },
-  "limit": 30
+  "tool": "outlit_query",
+  "sql": "SELECT cd.customer_id, cd.name, cd.mrr_cents/100 as mrr, count(DISTINCT e.event_id) as event_count, count(DISTINCT e.user_id) as active_users FROM customer_dimensions cd LEFT JOIN events e ON cd.customer_id = e.customer_id AND e.occurred_at >= now() - INTERVAL 30 DAY WHERE cd.billing_status = 'PAYING' GROUP BY cd.customer_id, cd.name, cd.mrr_cents ORDER BY event_count DESC LIMIT 25"
 }
 ```
 
-**Example 2 - Customer's key contacts:**
+### Users per Customer
+
 ```json
 {
-  "queryType": "contact_insights",
-  "params": {
-    "customerId": "cust_123",
-    "includeBlocks": ["personOverview", "dealRelevance", "leveragePoints"]
-  }
+  "tool": "outlit_query",
+  "sql": "SELECT cd.customer_id, cd.name, cd.mrr_cents/100 as mrr, count(ud.user_id) as user_count FROM customer_dimensions cd LEFT JOIN user_dimensions ud ON cd.customer_id = ud.customer_id WHERE cd.billing_status = 'PAYING' GROUP BY cd.customer_id, cd.name, cd.mrr_cents ORDER BY 4 DESC LIMIT 25"
 }
 ```
 
-**Example 3 - Specific contact:**
+### Revenue vs Engagement Correlation
+
 ```json
 {
-  "queryType": "contact_insights",
-  "params": {
-    "contactId": "contact_456",
-    "includeBlocks": ["personOverview", "whoTheyAre", "socialSignal"]
-  }
+  "tool": "outlit_query",
+  "sql": "SELECT CASE WHEN event_count < 10 THEN 'Low (<10)' WHEN event_count < 50 THEN 'Medium (10-50)' WHEN event_count < 200 THEN 'High (50-200)' ELSE 'Very High (200+)' END as engagement_tier, count(*) as customers, avg(mrr) as avg_mrr FROM (SELECT cd.customer_id, cd.mrr_cents/100 as mrr, count(e.event_id) as event_count FROM customer_dimensions cd LEFT JOIN events e ON cd.customer_id = e.customer_id AND e.occurred_at >= now() - INTERVAL 30 DAY WHERE cd.billing_status = 'PAYING' GROUP BY cd.customer_id, cd.mrr_cents) GROUP BY 1 ORDER BY 3 DESC"
 }
 ```
 
@@ -745,30 +572,19 @@ Retrieve AI-generated contact analysis from enrichment data.
 
 ## Response Parsing
 
-### Standard Response Structure
+### Standard SQL Response
 
 ```json
 {
-  "queryType": "revenue_metrics",
-  "timeframe": "30d",
-  "executedAt": "2025-01-30T10:00:00Z",
-  "results": {
-    "data": [
-      { "billingStatus": "PAYING", "mrr": 12500000, "customerCount": 45 }
-    ],
-    "aggregates": {
-      "totalMrr": 12500000
-    },
-    "pagination": {
-      "cursor": "eyJpZCI6...",
-      "hasMore": false,
-      "total": 3
-    }
-  },
+  "success": true,
+  "data": [
+    { "billing_status": "PAYING", "customers": 45, "mrr": 125000 },
+    { "billing_status": "TRIALING", "customers": 12, "mrr": 0 }
+  ],
   "metadata": {
-    "rowCount": 3,
-    "queryDurationMs": 145,
-    "dataSource": "prisma"
+    "rowsReturned": 2,
+    "executionTimeMs": 47,
+    "truncated": false
   }
 }
 ```
@@ -777,56 +593,66 @@ Retrieve AI-generated contact analysis from enrichment data.
 
 | Field | Description |
 |-------|-------------|
-| `results.data` | Array of result rows |
-| `results.aggregates` | Summary statistics (varies by query) |
-| `results.pagination.hasMore` | Whether more pages exist |
-| `results.pagination.cursor` | Token for next page |
-| `metadata.dataSource` | "prisma", "clickhouse", or "hybrid" |
+| `data` | Array of result rows |
+| `metadata.rowsReturned` | Number of rows returned |
+| `metadata.truncated` | Whether results were limited |
+| `metadata.executionTimeMs` | Query execution time |
 
 ### Empty Results
 
 ```json
 {
-  "queryType": "customer_cohort",
-  "timeframe": "30d",
-  "results": {
-    "data": [],
-    "pagination": { "hasMore": false, "total": 0 }
-  },
-  "metadata": { "rowCount": 0, "queryDurationMs": 12, "dataSource": "prisma" }
+  "success": true,
+  "data": [],
+  "metadata": {
+    "rowsReturned": 0,
+    "executionTimeMs": 8,
+    "truncated": false
+  }
 }
 ```
 
 ---
 
-## Common Patterns
+## Performance Tips
 
-### Combining Multiple Queries
+1. **Always add time filters** — Queries without date ranges scan all data
+2. **Start narrow** — Use specific filters before broadening
+3. **Limit results** — Don't fetch more than needed
+4. **Avoid SELECT *** — Specify columns explicitly
+5. **Use groupBy** — Aggregate server-side instead of client-side
+6. **Check truncation** — If `truncated: true`, add more filters
 
-For complex analysis, chain multiple queries:
+### Good Patterns
 
+```sql
+-- Filtered by date, limited results
+SELECT event_type, count(*)
+FROM events
+WHERE occurred_at >= now() - INTERVAL 7 DAY
+GROUP BY 1
+ORDER BY 2 DESC
+LIMIT 20
 ```
-1. customer_cohort → Find target segment
-2. revenue_metrics → Get financial metrics for segment
-3. event_aggregates → Understand engagement patterns
-4. company_insights → Get AI analysis
+
+### Patterns to Avoid
+
+```sql
+-- No date filter (scans all data)
+SELECT * FROM events
+
+-- No LIMIT on large result
+SELECT customer_id, occurred_at FROM events
 ```
 
-### Timeframe Selection Guide
+---
+
+## Timeframe Selection Guide
 
 | Timeframe | Use Case |
 |-----------|----------|
-| 7d | Recent activity, immediate trends |
-| 14d | Short-term patterns |
-| 30d | Standard period, monthly reports |
-| 90d | Quarterly analysis, cohort studies |
-| 1y | Annual trends, long-term patterns |
-| all | Historical analysis (use sparingly - slow) |
-
-### Performance Tips
-
-1. **Start narrow** — Use specific filters before broadening
-2. **Limit results** — Don't fetch more than needed
-3. **Avoid `all` timeframe** — Use specific ranges when possible
-4. **Use groupBy** — Aggregate server-side instead of client-side
-5. **Check data source** — ClickHouse queries may be unavailable
+| 7 days | Recent activity, immediate trends |
+| 14 days | Short-term patterns |
+| 30 days | Standard period, monthly reports |
+| 90 days | Quarterly analysis, cohort studies |
+| 365 days | Annual trends, long-term patterns |

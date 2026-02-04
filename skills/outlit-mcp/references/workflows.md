@@ -59,7 +59,6 @@ Check `behaviorMetrics.activityCount` and `lastEmailAt` / `lastMeetingAt`.
 {
   "tool": "outlit_get_timeline",
   "customer": "<customer_id>",
-  "timeframe": "90d",
   "channels": ["EMAIL", "CALENDAR", "CALL"],
   "limit": 100
 }
@@ -70,16 +69,12 @@ Look for:
 - Last meaningful interaction
 - Communication frequency changes
 
-### Step 4: Get AI insights (if available)
+### Step 4: Get aggregate churn patterns (SQL)
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "company_insights",
-  "params": {
-    "customerId": "<customer_id>",
-    "includeBlocks": ["companyContext", "landmines"]
-  }
+  "sql": "SELECT attribution_channel, count(*) as churned_customers, sum(mrr_cents)/100 as lost_mrr FROM customer_dimensions WHERE billing_status = 'CHURNED' AND churned_at >= now() - INTERVAL 90 DAY GROUP BY 1 ORDER BY 3 DESC"
 }
 ```
 
@@ -96,60 +91,48 @@ Present findings as:
 
 Build a comprehensive revenue overview.
 
-### Step 1: Current MRR by segment
+### Step 1: Current MRR by segment (SQL)
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "revenue_metrics",
-  "params": { "metric": "mrr" },
-  "groupBy": ["billingStatus"]
+  "sql": "SELECT billing_status, count(*) as customers, sum(mrr_cents)/100 as mrr_dollars FROM customer_dimensions GROUP BY 1 ORDER BY 3 DESC"
 }
 ```
 
-### Step 2: Revenue trends over time
+### Step 2: Revenue trends over time (SQL)
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "revenue_trends",
-  "timeframe": "1y",
-  "params": {
-    "granularity": "month",
-    "metric": "mrr"
-  }
+  "sql": "SELECT snapshot_date, sum(mrr_cents)/100 as total_mrr FROM mrr_snapshots WHERE snapshot_date >= today() - 365 GROUP BY 1 ORDER BY 1"
 }
 ```
 
-### Step 3: Attribution breakdown
+### Step 3: Attribution breakdown (SQL)
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "revenue_attribution",
-  "params": { "metric": "revenue" }
+  "sql": "SELECT attribution_channel, count(*) as customers, sum(mrr_cents)/100 as total_mrr FROM customer_dimensions WHERE billing_status = 'PAYING' AND attribution_channel != '' GROUP BY 1 ORDER BY 3 DESC"
 }
 ```
 
-### Step 4: Customer metrics
+### Step 4: Customer metrics (SQL)
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "customer_metrics",
-  "params": { "metric": "count" },
-  "groupBy": ["billingStatus"]
+  "sql": "SELECT billing_status, count(*) as customer_count FROM customer_dimensions GROUP BY 1 ORDER BY 2 DESC"
 }
 ```
 
-### Step 5: Churn analysis
+### Step 5: Churn analysis (SQL)
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "revenue_metrics",
-  "timeframe": "90d",
-  "params": { "metric": "churn" }
+  "sql": "SELECT toStartOfMonth(churned_at) as churn_month, count(*) as churned_customers, sum(mrr_cents)/100 as churned_mrr FROM customer_dimensions WHERE churned_at IS NOT NULL AND churned_at >= now() - INTERVAL 12 MONTH GROUP BY 1 ORDER BY 1 DESC"
 }
 ```
 
@@ -205,13 +188,12 @@ Identify and analyze customer segments.
 }
 ```
 
-### Customer Distribution Analysis
+### Customer Distribution Analysis (SQL)
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "customer_metrics",
-  "groupBy": ["billingStatus", "type"]
+  "sql": "SELECT billing_status, plan, count(*) as customers, sum(mrr_cents)/100 as total_mrr FROM customer_dimensions WHERE plan != '' GROUP BY 1, 2 ORDER BY 4 DESC"
 }
 ```
 
@@ -242,63 +224,48 @@ Present as segment analysis:
 
 Understand customer engagement patterns.
 
-### Step 1: Overall activity volume
+### Step 1: Overall activity volume (SQL)
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "event_aggregates",
-  "timeframe": "30d",
-  "params": { "channels": ["EMAIL", "SLACK", "CALENDAR", "CALL"] },
-  "groupBy": ["channel"]
+  "sql": "SELECT event_channel, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_channel IN ('EMAIL', 'SLACK', 'CALENDAR', 'CALL') GROUP BY 1 ORDER BY 2 DESC"
 }
 ```
 
-### Step 2: Activity trends over time
+### Step 2: Activity trends over time (SQL)
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "event_trends",
-  "timeframe": "90d",
-  "params": { "granularity": "week" },
-  "groupBy": ["channel"]
+  "sql": "SELECT toStartOfWeek(occurred_at) as week, event_channel, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 90 DAY GROUP BY 1, 2 ORDER BY 1, 3 DESC"
 }
 ```
 
-### Step 3: Feature adoption
+### Step 3: Feature adoption (SQL)
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "feature_usage",
-  "timeframe": "30d",
-  "params": { "metric": "adoption" }
+  "sql": "SELECT event_type as feature, count(DISTINCT user_id) as unique_users, count(*) as total_uses FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_type LIKE 'feature_%' GROUP BY 1 ORDER BY 2 DESC"
 }
 ```
 
-### Step 4: Session metrics
+### Step 4: Session metrics (SQL)
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "session_metrics",
-  "timeframe": "30d",
-  "params": { "metric": "sessions" }
+  "sql": "SELECT count(*) as pageviews, count(DISTINCT session_id) as sessions, count(DISTINCT user_id) as unique_users FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_type = 'pageview'"
 }
 ```
 
-### Step 5: Communication patterns
+### Step 5: Communication patterns (SQL)
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "communication_summary",
-  "timeframe": "30d",
-  "params": {
-    "channels": ["email", "slack", "call", "meeting"],
-    "metric": "volume"
-  }
+  "sql": "SELECT event_channel, count(*) as communications FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_channel IN ('EMAIL', 'SLACK', 'CALENDAR', 'CALL') GROUP BY 1 ORDER BY 2 DESC"
 }
 ```
 
@@ -332,7 +299,6 @@ Deep dive on a single customer account.
 {
   "tool": "outlit_get_timeline",
   "customer": "<customer_id>",
-  "timeframe": "90d",
   "limit": 100
 }
 ```
@@ -348,27 +314,12 @@ Deep dive on a single customer account.
 }
 ```
 
-### Step 4: Get AI insights
+### Step 4: Compare to similar customers (SQL)
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "company_insights",
-  "params": {
-    "customerId": "<customer_id>",
-    "includeBlocks": ["companyContext", "sharpQuestions", "landmines"]
-  }
-}
-```
-
-```json
-{
-  "tool": "outlit_query",
-  "queryType": "contact_insights",
-  "params": {
-    "customerId": "<customer_id>",
-    "includeBlocks": ["personOverview", "dealRelevance", "leveragePoints"]
-  }
+  "sql": "SELECT customer_id, name, mrr_cents/100 as mrr, last_activity_at FROM customer_dimensions WHERE billing_status = 'PAYING' AND plan = '<customer_plan>' ORDER BY mrr_cents DESC LIMIT 10"
 }
 ```
 
@@ -378,7 +329,7 @@ Deep dive on a single customer account.
 - **Key contacts**: Decision makers, champions
 - **Engagement health**: Activity trends, last touchpoints
 - **Revenue history**: Billing events, upgrades/downgrades
-- **AI insights**: Company context, conversation starters
+- **Peer comparison**: How this account compares to similar customers
 
 ---
 
@@ -386,34 +337,30 @@ Deep dive on a single customer account.
 
 Analyze channel performance and attribution.
 
-### Step 1: Revenue by acquisition channel
+### Step 1: Revenue by acquisition channel (SQL)
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "revenue_attribution",
-  "params": { "metric": "revenue" }
+  "sql": "SELECT attribution_channel, count(*) as customers, sum(mrr_cents)/100 as total_mrr, avg(mrr_cents)/100 as avg_mrr FROM customer_dimensions WHERE billing_status = 'PAYING' AND attribution_channel != '' GROUP BY 1 ORDER BY 3 DESC"
 }
 ```
 
-### Step 2: Customer count by channel
+### Step 2: Customer count by channel (SQL)
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "revenue_attribution",
-  "params": { "metric": "customers" }
+  "sql": "SELECT attribution_channel, toStartOfMonth(first_seen_at) as month, count(*) as new_customers FROM customer_dimensions WHERE attribution_channel != '' AND first_seen_at >= now() - INTERVAL 12 MONTH GROUP BY 1, 2 ORDER BY 2 DESC, 3 DESC"
 }
 ```
 
-### Step 3: Channel conversion rates
+### Step 3: Channel conversion rates (SQL)
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "revenue_attribution",
-  "timeframe": "90d",
-  "params": { "metric": "conversion" }
+  "sql": "SELECT attribution_channel, count(*) as total_customers, countIf(billing_status = 'PAYING') as paying_customers, countIf(billing_status = 'PAYING') * 100.0 / count(*) as conversion_rate FROM customer_dimensions WHERE attribution_channel != '' GROUP BY 1 ORDER BY 4 DESC"
 }
 ```
 
@@ -421,8 +368,8 @@ Analyze channel performance and attribution.
 
 ```json
 {
-  "tool": "outlit_sql",
-  "sql": "SELECT attribution_channel, toStartOfMonth(first_seen_at) as month, sum(mrr_cents)/100 as mrr FROM customer_dimensions WHERE billing_status = 'PAYING' GROUP BY 1, 2 ORDER BY 2, 3 DESC"
+  "tool": "outlit_query",
+  "sql": "SELECT attribution_channel, toStartOfMonth(first_seen_at) as month, sum(mrr_cents)/100 as mrr FROM customer_dimensions WHERE billing_status = 'PAYING' AND attribution_channel != '' GROUP BY 1, 2 ORDER BY 2, 3 DESC"
 }
 ```
 
@@ -439,38 +386,30 @@ Analyze channel performance and attribution.
 
 High-level business metrics overview.
 
-### Step 1: Current business state
+### Step 1: Current business state (SQL)
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "revenue_metrics",
-  "params": { "metric": "mrr" },
-  "groupBy": ["billingStatus"]
+  "sql": "SELECT billing_status, count(*) as customers, sum(mrr_cents)/100 as mrr_dollars FROM customer_dimensions GROUP BY 1 ORDER BY 3 DESC"
 }
 ```
 
-### Step 2: Customer counts
+### Step 2: Customer counts (SQL)
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "customer_metrics",
-  "groupBy": ["billingStatus"]
+  "sql": "SELECT billing_status, count(*) as customer_count FROM customer_dimensions GROUP BY 1 ORDER BY 2 DESC"
 }
 ```
 
-### Step 3: MRR trend (last 6 months)
+### Step 3: MRR trend (last 6 months) (SQL)
 
 ```json
 {
   "tool": "outlit_query",
-  "queryType": "revenue_trends",
-  "timeframe": "90d",
-  "params": {
-    "granularity": "month",
-    "metric": "mrr"
-  }
+  "sql": "SELECT snapshot_date, sum(mrr_cents)/100 as total_mrr FROM mrr_snapshots WHERE snapshot_date >= today() - 180 GROUP BY 1 ORDER BY 1"
 }
 ```
 
@@ -514,29 +453,29 @@ SQL-based exploration for ad-hoc analysis.
 { "tool": "outlit_schema", "table": "events" }
 ```
 
-### Example: Customer Activity Correlation
+### Example: Customer Activity Correlation (SQL)
 
 ```json
 {
-  "tool": "outlit_sql",
+  "tool": "outlit_query",
   "sql": "SELECT cd.customer_id, cd.name, cd.mrr_cents/100 as mrr, count(DISTINCT e.event_id) as events_30d, count(DISTINCT e.user_id) as active_users FROM customer_dimensions cd LEFT JOIN events e ON cd.customer_id = e.customer_id AND e.occurred_at >= now() - INTERVAL 30 DAY WHERE cd.billing_status = 'PAYING' GROUP BY cd.customer_id, cd.name, cd.mrr_cents ORDER BY events_30d DESC LIMIT 25"
 }
 ```
 
-### Example: Time-of-Day Analysis
+### Example: Time-of-Day Analysis (SQL)
 
 ```json
 {
-  "tool": "outlit_sql",
+  "tool": "outlit_query",
   "sql": "SELECT toHour(occurred_at) as hour_of_day, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 7 DAY GROUP BY 1 ORDER BY 1"
 }
 ```
 
-### Example: Cohort Retention
+### Example: Cohort Retention (SQL)
 
 ```json
 {
-  "tool": "outlit_sql",
+  "tool": "outlit_query",
   "sql": "SELECT toStartOfMonth(first_seen_at) as cohort, count(*) as total, countIf(billing_status = 'PAYING') as paying, countIf(billing_status = 'CHURNED') as churned FROM customer_dimensions GROUP BY 1 ORDER BY 1 DESC"
 }
 ```
@@ -546,7 +485,7 @@ SQL-based exploration for ad-hoc analysis.
 ## Workflow Best Practices
 
 1. **Start broad, then narrow** — Begin with overview queries, drill into specifics
-2. **Check data availability** — ClickHouse queries (events, features) may return 503
+2. **Use customer tools for single lookups** — Don't use SQL for individual customer data
 3. **Cache early results** — Reference customer IDs from initial queries in follow-ups
 4. **Handle empty results** — Some segments may have no data
 5. **Convert monetary values** — All MRR/revenue in cents, divide by 100 for display

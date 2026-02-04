@@ -10,7 +10,6 @@ Solutions for common issues when using Outlit MCP tools.
 |---------|--------------|---------|
 | 401 Unauthorized | Authentication issue | [→](#authentication-errors) |
 | 404 Not Found | Invalid customer/entity | [→](#not-found-errors) |
-| 503 Service Unavailable | ClickHouse offline | [→](#clickhouse-unavailable) |
 | Empty results | Filters too narrow | [→](#empty-results) |
 | Slow queries | Missing filters | [→](#slow-queries) |
 | SQL errors | Syntax or permission | [→](#sql-errors) |
@@ -86,54 +85,6 @@ Solutions for common issues when using Outlit MCP tools.
 
 ---
 
-## ClickHouse Unavailable
-
-### 503 Service Unavailable
-
-**Symptoms:**
-- "Service unavailable" on analytics queries
-- "ClickHouse not available"
-- Timeout on event/feature queries
-
-**Affected Tools:**
-- `outlit_query` with types: `event_aggregates`, `event_trends`, `feature_usage`, `session_metrics`, `communication_summary`
-- `outlit_sql`
-- `outlit_schema`
-
-**Solutions:**
-
-1. **Use Prisma-based alternatives**
-   ```json
-   // Instead of event_aggregates, use customer-level data
-   {
-     "tool": "outlit_query",
-     "queryType": "customer_cohort",
-     "params": { "include": ["revenue"] }
-   }
-   ```
-
-2. **Check service status**
-   - ClickHouse may be temporarily unavailable
-   - Retry after a few minutes
-
-3. **Fall back to customer tools**
-   - `outlit_list_customers` (Prisma-based, always available)
-   - `outlit_get_customer` (Prisma-based)
-   - `outlit_get_customer_revenue` (Prisma-based)
-   - `outlit_query` with `revenue_*` or `customer_*` types
-
-**Prisma-Based Query Types (always available):**
-- `customer_cohort`
-- `customer_metrics`
-- `contact_journey`
-- `revenue_metrics`
-- `revenue_attribution`
-- `revenue_trends`
-- `company_insights`
-- `contact_insights`
-
----
-
 ## Empty Results
 
 ### No Data Returned
@@ -166,12 +117,10 @@ Solutions for common issues when using Outlit MCP tools.
    }
    ```
 
-2. **Extend timeframe**
-   ```json
-   // Try longer timeframe
-   { "timeframe": "90d" }  // Instead of "7d"
-   { "timeframe": "1y" }   // For historical data
-   { "timeframe": "all" }  // All available data
+2. **Extend timeframe in SQL**
+   ```sql
+   -- Try longer timeframe
+   WHERE occurred_at >= now() - INTERVAL 90 DAY  -- Instead of 7 DAY
    ```
 
 3. **Remove one filter at a time**
@@ -181,11 +130,9 @@ Solutions for common issues when using Outlit MCP tools.
 
 4. **Verify data exists**
    ```json
-   // Get total customer count
    {
      "tool": "outlit_query",
-     "queryType": "customer_metrics",
-     "groupBy": ["billingStatus"]
+     "sql": "SELECT billing_status, count(*) FROM customer_dimensions GROUP BY 1"
    }
    ```
 
@@ -201,17 +148,17 @@ Solutions for common issues when using Outlit MCP tools.
 - "Query exceeded time limit"
 
 **Causes:**
-1. Missing time filters
+1. Missing time filters in SQL
 2. Too large result set
 3. Complex SQL without indexes
-4. `timeframe: "all"` on large datasets
+4. Scanning all data without WHERE clause
 
 **Solutions:**
 
-1. **Add time filters**
-   ```json
-   // Always include timeframe
-   { "timeframe": "30d" }  // Not "all"
+1. **Add time filters to SQL**
+   ```sql
+   -- Always include date filter for events
+   WHERE occurred_at >= now() - INTERVAL 30 DAY
    ```
 
 2. **Reduce limit**
@@ -222,7 +169,7 @@ Solutions for common issues when using Outlit MCP tools.
 3. **Add WHERE clauses to SQL**
    ```json
    {
-     "tool": "outlit_sql",
+     "tool": "outlit_query",
      "sql": "SELECT ... FROM events WHERE occurred_at >= now() - INTERVAL 7 DAY ..."
    }
    ```
@@ -477,20 +424,13 @@ evt_789xyz      // Event ID
 | Too many events | Add channel/eventType filters |
 | Missing event details | Check eventTypes parameter |
 
-### outlit_query
+### outlit_query (SQL)
 
 | Issue | Solution |
 |-------|----------|
-| Unknown queryType | Use `outlit_list_query_types` to discover |
-| Invalid groupBy | Check allowed fields per query type |
-| 503 on event queries | ClickHouse unavailable, use alternatives |
-
-### outlit_sql
-
-| Issue | Solution |
-|-------|----------|
-| Can't find column | Use `outlit_schema` first |
-| Query blocked | Check security restrictions |
+| Table not found | Use `outlit_schema` to discover tables |
+| Column not found | Use `outlit_schema` with table name |
+| Query blocked | Check security restrictions (SELECT only) |
 | Slow execution | Add WHERE filters, use LIMIT |
 
 ---
@@ -500,22 +440,28 @@ evt_789xyz      // Event ID
 If issues persist:
 
 1. **Check error message hints** — Responses include actionable hints
-2. **Verify with schema discovery** — Use `outlit_schema` and `outlit_list_query_types`
+2. **Verify with schema discovery** — Use `outlit_schema` to see tables and columns
 3. **Start simple** — Build queries incrementally
-4. **Check data exists** — Query customer_metrics first to verify data
+4. **Check data exists** — Run a simple count query first
 
 **Useful diagnostic queries:**
 
 ```json
 // Verify you have data
-{ "tool": "outlit_query", "queryType": "customer_metrics", "groupBy": ["billingStatus"] }
+{
+  "tool": "outlit_query",
+  "sql": "SELECT billing_status, count(*) FROM customer_dimensions GROUP BY 1"
+}
 
 // Check available tables
 { "tool": "outlit_schema" }
 
-// Check available query types
-{ "tool": "outlit_list_query_types" }
-
 // Simple customer list
 { "tool": "outlit_list_customers", "limit": 5 }
+
+// Check events exist
+{
+  "tool": "outlit_query",
+  "sql": "SELECT count(*) FROM events WHERE occurred_at >= now() - INTERVAL 7 DAY"
+}
 ```

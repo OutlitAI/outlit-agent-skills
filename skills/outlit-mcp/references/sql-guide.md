@@ -1,6 +1,6 @@
 # SQL Guide
 
-Complete documentation for `outlit_sql` and `outlit_schema` tools for raw SQL access to analytics data.
+Complete documentation for `outlit_query` and `outlit_schema` tools for raw SQL access to analytics data.
 
 ---
 
@@ -22,7 +22,7 @@ Complete documentation for `outlit_sql` and `outlit_schema` tools for raw SQL ac
 
 ```json
 {
-  "tool": "outlit_sql",
+  "tool": "outlit_query",
   "sql": "SELECT event_type, count(*) as cnt FROM events GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
 }
 ```
@@ -564,17 +564,19 @@ If `truncated: true`, add more WHERE filters or increase the limit (max 10000).
 
 ---
 
-## When to Use SQL vs outlit_query
+## When to Use SQL vs Customer Tools
 
 | Use Case | Recommended Tool |
 |----------|------------------|
-| Standard metrics (MRR, churn) | `outlit_query` |
-| Customer cohort analysis | `outlit_query` |
-| Predefined query patterns | `outlit_query` |
-| Custom aggregations | `outlit_sql` |
-| Complex JOINs | `outlit_sql` |
-| Ad-hoc exploration | `outlit_sql` |
-| Time-series with custom granularity | `outlit_sql` |
-| Cross-table analysis | `outlit_sql` |
+| Single customer lookup | `outlit_get_customer` |
+| Customer list with filters | `outlit_list_customers` |
+| Activity timeline | `outlit_get_timeline` |
+| Revenue for one customer | `outlit_get_customer_revenue` |
+| Aggregate metrics (MRR, churn) | `outlit_query` (SQL) |
+| Custom aggregations | `outlit_query` (SQL) |
+| Complex JOINs | `outlit_query` (SQL) |
+| Ad-hoc exploration | `outlit_query` (SQL) |
+| Time-series analysis | `outlit_query` (SQL) |
+| Cross-table analysis | `outlit_query` (SQL) |
 
-**Rule of thumb:** If `outlit_query` has a query type for it, use that first. Fall back to `outlit_sql` for custom needs.
+**Rule of thumb:** Use dedicated customer tools for single-entity lookups. Use `outlit_query` with SQL for aggregations, trends, and custom analytics.
