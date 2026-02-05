@@ -245,70 +245,157 @@ export async function upgradeAccount(plan: string) {
 
 ## Vue 3
 
+Vue 3 has first-class support with a dedicated plugin and composables exported from `@outlit/browser/vue`.
+
 ### Installation
 ```bash
 npm install @outlit/browser
 ```
 
-### Setup with Composition API
+### Plugin Setup
 
 ```ts
-// src/plugins/outlit.ts
-import outlit from '@outlit/browser'
-
-export default {
-  install(app: any) {
-    outlit.init({
-      publicKey: import.meta.env.VITE_OUTLIT_KEY
-    })
-
-    app.config.globalProperties.$outlit = outlit
-  }
-}
-
-// src/main.ts
+// main.ts
 import { createApp } from 'vue'
-import outlitPlugin from './plugins/outlit'
+import { OutlitPlugin } from '@outlit/browser/vue'
 import App from './App.vue'
 
-createApp(App)
-  .use(outlitPlugin)
-  .mount('#app')
+const app = createApp(App)
+
+app.use(OutlitPlugin, {
+  publicKey: import.meta.env.VITE_OUTLIT_KEY,
+  trackPageviews: true,
+  trackForms: true,
+})
+
+app.mount('#app')
 ```
 
-### Composable
+### With Authentication (Recommended)
 
-```ts
-// src/composables/useOutlit.ts
-import outlit from '@outlit/browser'
+Use `useOutlitUser` for automatic reactive user identity sync:
 
-export function useOutlit() {
-  const track = (eventName: string, properties?: Record<string, any>) => {
-    outlit.track(eventName, properties)
-  }
+```vue
+<!-- App.vue or a top-level component -->
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useOutlitUser } from '@outlit/browser/vue'
+import { useAuthStore } from '@/stores/auth'
 
-  const identify = (email: string, traits?: Record<string, any>) => {
-    outlit.identify({ email, traits })
-  }
+const auth = useAuthStore()
 
+// Build user identity from your auth state
+const outlitUser = computed(() => {
+  if (!auth.user) return null
   return {
-    track,
-    identify,
-    user: outlit.user,
-    customer: outlit.customer
+    email: auth.user.email,
+    userId: auth.user.id,
+    traits: {
+      name: auth.user.name,
+      plan: auth.user.plan
+    }
   }
+})
+
+// Auto-sync user identity with Outlit (handles login/logout automatically)
+useOutlitUser(outlitUser)
+</script>
+
+<template>
+  <router-view />
+</template>
+```
+
+### Event Tracking
+
+Use the `useOutlit` composable for full access to tracking methods:
+
+```vue
+<script setup lang="ts">
+import { useOutlit } from '@outlit/browser/vue'
+
+const { track, user, customer } = useOutlit()
+
+function handleUpgrade() {
+  track('subscription_upgraded', { plan: 'pro' })
+  user.activate({ milestone: 'upgraded' })
 }
 
-// Usage in component
-<script setup lang="ts">
-import { useOutlit } from '@/composables/useOutlit'
+function handlePayment() {
+  customer.paid({ domain: 'acme.com', plan: 'pro' })
+}
+</script>
 
-const { track } = useOutlit()
+<template>
+  <button @click="handleUpgrade">Upgrade</button>
+</template>
+```
+
+Or use the `useTrack` convenience composable for simple event tracking:
+
+```vue
+<script setup lang="ts">
+import { useTrack } from '@outlit/browser/vue'
+
+const track = useTrack()
 
 const handleClick = () => {
   track('button_clicked', { button: 'hero_cta' })
 }
 </script>
+
+<template>
+  <button @click="handleClick">Click Me</button>
+</template>
+```
+
+### Consent Management
+
+For GDPR compliance, disable auto-tracking until consent:
+
+```ts
+// main.ts
+app.use(OutlitPlugin, {
+  publicKey: import.meta.env.VITE_OUTLIT_KEY,
+  autoTrack: false, // Don't track until consent
+})
+```
+
+```vue
+<!-- CookieBanner.vue -->
+<script setup lang="ts">
+import { useOutlit } from '@outlit/browser/vue'
+
+const { enableTracking, isTrackingEnabled } = useOutlit()
+
+function acceptTracking() {
+  localStorage.setItem('tracking-consent', 'true')
+  enableTracking()
+}
+</script>
+
+<template>
+  <div v-if="!isTrackingEnabled" class="cookie-banner">
+    <p>We use cookies to improve your experience.</p>
+    <button @click="acceptTracking">Accept</button>
+  </div>
+</template>
+```
+
+### Plugin Options
+
+```ts
+app.use(OutlitPlugin, {
+  publicKey: 'pk_xxx',              // Required
+  apiHost: 'https://app.outlit.ai', // Optional, default API host
+  trackPageviews: true,             // Auto-track pageviews (default: true)
+  trackForms: true,                 // Auto-capture form submissions (default: true)
+  trackEngagement: true,            // Track active time on page (default: true)
+  autoTrack: true,                  // Start tracking immediately (default: true)
+  autoIdentify: true,               // Auto-identify from form emails (default: true)
+  flushInterval: 5000,              // Flush queued events interval in ms (default: 5000)
+  formFieldDenylist: ['secret'],    // Fields to exclude from form capture
+})
 ```
 
 ---
