@@ -131,6 +131,49 @@ export default function RootLayout({ children }) {
 
 Copy template from `assets/nextjs/_app.tsx`.
 
+#### Vue 3
+
+Use the first-class Vue plugin and composables:
+
+```ts
+// main.ts
+import { createApp } from 'vue'
+import { OutlitPlugin } from '@outlit/browser/vue'
+import App from './App.vue'
+
+const app = createApp(App)
+
+app.use(OutlitPlugin, {
+  publicKey: import.meta.env.VITE_OUTLIT_KEY,
+  trackPageviews: true,
+})
+
+app.mount('#app')
+```
+
+For user identity sync, use `useOutlitUser` in App.vue:
+
+```vue
+<script setup>
+import { computed } from 'vue'
+import { useOutlitUser } from '@outlit/browser/vue'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
+
+const outlitUser = computed(() => {
+  if (!auth.user) return null
+  return {
+    email: auth.user.email,
+    userId: auth.user.id,
+    traits: { name: auth.user.name }
+  }
+})
+
+useOutlitUser(outlitUser)
+</script>
+```
+
 #### Node.js / Express
 
 Copy templates from `assets/node/`:
