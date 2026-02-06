@@ -87,7 +87,6 @@ Go to **Settings > MCP Integration** in the Outlit dashboard ([app.outlit.ai](ht
 | Environment | URL |
 |-------------|-----|
 | Production | `https://mcp.outlit.ai` |
-| Staging | `https://staging.mcp.outlit.ai` |
 | Local dev | `http://localhost:3001` |
 
 ### Claude Code
