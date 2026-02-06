@@ -71,9 +71,7 @@ Full response examples for each Outlit MCP tool to understand data shapes and pa
       "email": "john@acme.com",
       "name": "John Smith",
       "customerId": "cust_abc123",
-      "customerDomain": "acme.com",
       "journeyStage": "ENGAGED",
-      "firstSeenAt": "2024-06-15T10:30:00Z",
       "lastActivityAt": "2025-01-28T14:22:00Z",
       "daysSinceActivity": 3
     },
@@ -82,9 +80,7 @@ Full response examples for each Outlit MCP tool to understand data shapes and pa
       "email": "jane@acme.com",
       "name": "Jane Doe",
       "customerId": "cust_abc123",
-      "customerDomain": "acme.com",
       "journeyStage": "ACTIVATED",
-      "firstSeenAt": "2024-09-01T08:00:00Z",
       "lastActivityAt": "2025-01-20T11:00:00Z",
       "daysSinceActivity": 12
     }
@@ -100,7 +96,6 @@ Full response examples for each Outlit MCP tool to understand data shapes and pa
 **Key Fields:**
 - `journeyStage`: DISCOVERED, SIGNED_UP, ACTIVATED, ENGAGED, INACTIVE
 - `daysSinceActivity`: Calculated from `lastActivityAt` (null if never active)
-- `customerDomain`: Domain of the parent customer
 
 ---
 
