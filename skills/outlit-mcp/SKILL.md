@@ -248,7 +248,7 @@ Filter and paginate users with journey stage and activity filters.
 | `hasActivityInLast` | string | Nd, Nh, or Nm (e.g., 7d, 24h, 90m) | (none) |
 | `noActivityInLast` | string | Nd, Nh, or Nm (e.g., 30d, 2h) | (none) |
 | `search` | string | email or name | (none) |
-| `orderBy` | enum | last_activity_at, first_seen_at, user_email | last_activity_at |
+| `orderBy` | enum | last_activity_at, first_seen_at, email | last_activity_at |
 | `orderDirection` | enum | asc, desc | desc |
 | `limit` | number | 1-1000 | 20 |
 | `cursor` | string | pagination token | (none) |
