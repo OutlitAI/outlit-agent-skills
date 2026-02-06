@@ -39,7 +39,7 @@ Customer activity events from all channels.
 |--------|------|-------------|
 | `event_id` | UUID | Unique event identifier |
 | `event_type` | String | Event type (pageview, click, signup, etc.) |
-| `event_channel` | String | Source: SDK, EMAIL, SLACK, CALENDAR, CALL, CRM, BILLING, SUPPORT |
+| `event_channel` | String | Source: SDK, EMAIL, SLACK, CALL, CRM, BILLING, SUPPORT, INTERNAL |
 | `customer_id` | String | Customer identifier |
 | `customer_domain` | String | Customer's domain |
 | `user_id` | String | User identifier |
@@ -95,6 +95,7 @@ Customer attributes, billing status, and revenue metrics.
 | `plan` | String | Subscription plan name |
 | `mrr_cents` | Int64 | Monthly recurring revenue in cents |
 | `lifetime_revenue_cents` | Int64 | Total lifetime revenue in cents |
+| `active_subscription_count` | Int32 | Number of active subscriptions |
 | `created_at` | DateTime | Customer record creation |
 | `first_seen_at` | DateTime | First activity timestamp |
 | `churned_at` | DateTime | Churn timestamp (null if active) |
@@ -152,6 +153,12 @@ User attributes within customers.
 | `customer_id` | String | Parent customer |
 | `email` | String | User email |
 | `name` | String | User name |
+| `journey_stage` | String | Contact journey stage (DISCOVERED, SIGNED_UP, ACTIVATED, ENGAGED, INACTIVE) |
+| `first_seen_at` | DateTime | First activity timestamp |
+| `discovered_at` | DateTime | When user was first discovered |
+| `first_visitor_channel` | String | First visit attribution channel |
+| `first_visitor_source` | String | First visit attribution source |
+| `customer_domain` | String | Domain of parent customer |
 | `created_at` | DateTime | User creation timestamp |
 | `last_activity_at` | DateTime | Most recent activity |
 | `organization_id` | String | Organization (auto-filtered) |
@@ -179,6 +186,12 @@ FROM user_dimensions
 GROUP BY 1
 ORDER BY 2 DESC
 LIMIT 20
+
+-- Users by journey stage
+SELECT journey_stage, count(*) as user_count
+FROM user_dimensions
+GROUP BY 1
+ORDER BY 2 DESC
 ```
 
 ---
@@ -571,7 +584,7 @@ If `truncated: true`, add more WHERE filters or increase the limit (max 10000).
 | Single customer lookup | `outlit_get_customer` |
 | Customer list with filters | `outlit_list_customers` |
 | Activity timeline | `outlit_get_timeline` |
-| Revenue for one customer | `outlit_get_customer_revenue` |
+| Revenue for one customer | `outlit_get_customer` with `include: ["revenue"]` |
 | Aggregate metrics (MRR, churn) | `outlit_query` (SQL) |
 | Custom aggregations | `outlit_query` (SQL) |
 | Complex JOINs | `outlit_query` (SQL) |

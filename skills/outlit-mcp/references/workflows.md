@@ -30,13 +30,13 @@ Identify at-risk paying customers and investigate patterns.
   "tool": "outlit_list_customers",
   "billingStatus": "PAYING",
   "noActivityInLast": "30d",
-  "orderBy": "currentMrr",
+  "orderBy": "mrr_cents",
   "orderDirection": "desc",
   "limit": 25
 }
 ```
 
-Look for customers with `riskSignal: "critical"` in the response.
+Filter by `noActivityInLast: "30d"` and sort by `mrr_cents` to prioritize high-value customers.
 
 ### Step 2: Get context for high-value at-risk customers
 
@@ -46,7 +46,7 @@ For each high-MRR customer from Step 1:
 {
   "tool": "outlit_get_customer",
   "customer": "<customer_id>",
-  "include": ["contacts", "revenue", "behaviorMetrics"],
+  "include": ["users", "revenue", "behaviorMetrics"],
   "timeframe": "90d"
 }
 ```
@@ -59,7 +59,7 @@ Check `behaviorMetrics.activityCount` and `lastEmailAt` / `lastMeetingAt`.
 {
   "tool": "outlit_get_timeline",
   "customer": "<customer_id>",
-  "channels": ["EMAIL", "CALENDAR", "CALL"],
+  "channels": ["EMAIL", "CALL", "CRM"],
   "limit": 100
 }
 ```
@@ -159,7 +159,7 @@ Identify and analyze customer segments.
   "billingStatus": "PAYING",
   "hasActivityInLast": "7d",
   "mrrAbove": 50000,
-  "orderBy": "currentMrr",
+  "orderBy": "mrr_cents",
   "orderDirection": "desc"
 }
 ```
@@ -171,7 +171,7 @@ Identify and analyze customer segments.
   "tool": "outlit_list_customers",
   "billingStatus": "TRIALING",
   "hasActivityInLast": "7d",
-  "orderBy": "lastActivityAt",
+  "orderBy": "last_activity_at",
   "orderDirection": "desc"
 }
 ```
@@ -183,8 +183,7 @@ Identify and analyze customer segments.
   "tool": "outlit_list_customers",
   "billingStatus": "PAYING",
   "noActivityInLast": "14d",
-  "mrrAbove": 100000,
-  "type": "COMPANY"
+  "mrrAbove": 100000
 }
 ```
 
@@ -202,9 +201,8 @@ Identify and analyze customer segments.
 ```json
 {
   "tool": "outlit_list_customers",
-  "status": "CHURNED",
   "billingStatus": "CHURNED",
-  "orderBy": "lastActivityAt",
+  "orderBy": "last_activity_at",
   "orderDirection": "desc",
   "limit": 25
 }
@@ -229,7 +227,7 @@ Understand customer engagement patterns.
 ```json
 {
   "tool": "outlit_query",
-  "sql": "SELECT event_channel, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_channel IN ('EMAIL', 'SLACK', 'CALENDAR', 'CALL') GROUP BY 1 ORDER BY 2 DESC"
+  "sql": "SELECT event_channel, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_channel IN ('EMAIL', 'SLACK', 'CALL', 'CRM') GROUP BY 1 ORDER BY 2 DESC"
 }
 ```
 
@@ -265,7 +263,7 @@ Understand customer engagement patterns.
 ```json
 {
   "tool": "outlit_query",
-  "sql": "SELECT event_channel, count(*) as communications FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_channel IN ('EMAIL', 'SLACK', 'CALENDAR', 'CALL') GROUP BY 1 ORDER BY 2 DESC"
+  "sql": "SELECT event_channel, count(*) as communications FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_channel IN ('EMAIL', 'SLACK', 'CALL', 'CRM') GROUP BY 1 ORDER BY 2 DESC"
 }
 ```
 
@@ -288,7 +286,7 @@ Deep dive on a single customer account.
 {
   "tool": "outlit_get_customer",
   "customer": "<customer_id_or_domain>",
-  "include": ["contacts", "revenue", "recentTimeline", "behaviorMetrics"],
+  "include": ["users", "revenue", "recentTimeline", "behaviorMetrics"],
   "timeframe": "30d"
 }
 ```
@@ -307,10 +305,9 @@ Deep dive on a single customer account.
 
 ```json
 {
-  "tool": "outlit_get_customer_revenue",
+  "tool": "outlit_get_customer",
   "customer": "<customer_id>",
-  "includeAttribution": true,
-  "includeBillingHistory": true
+  "include": ["revenue"]
 }
 ```
 
@@ -420,13 +417,13 @@ High-level business metrics overview.
   "tool": "outlit_list_customers",
   "billingStatus": "PAYING",
   "noActivityInLast": "30d",
-  "orderBy": "currentMrr",
+  "orderBy": "mrr_cents",
   "orderDirection": "desc",
   "limit": 10
 }
 ```
 
-Sum `currentMrr` from results to get at-risk MRR.
+Sum `mrr_cents` from results to get at-risk MRR.
 
 ### Summary Output
 

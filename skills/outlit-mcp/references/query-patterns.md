@@ -330,7 +330,7 @@ Count events by type, channel, or customer.
 ```json
 {
   "tool": "outlit_query",
-  "sql": "SELECT customer_domain, event_channel, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 7 DAY AND event_channel IN ('EMAIL', 'SLACK', 'CALENDAR') GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 50"
+  "sql": "SELECT customer_domain, event_channel, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 7 DAY AND event_channel IN ('EMAIL', 'SLACK', 'CALL') GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 50"
 }
 ```
 
@@ -471,7 +471,7 @@ Analyze email, call, Slack, and meeting activity.
 ```json
 {
   "tool": "outlit_query",
-  "sql": "SELECT event_channel, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_channel IN ('EMAIL', 'SLACK', 'CALENDAR', 'CALL') GROUP BY 1 ORDER BY 2 DESC"
+  "sql": "SELECT event_channel, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_channel IN ('EMAIL', 'SLACK', 'CALL', 'CRM') GROUP BY 1 ORDER BY 2 DESC"
 }
 ```
 
@@ -480,7 +480,7 @@ Analyze email, call, Slack, and meeting activity.
 ```json
 {
   "tool": "outlit_query",
-  "sql": "SELECT customer_domain, event_channel, count(*) as communications FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_channel IN ('EMAIL', 'SLACK', 'CALENDAR', 'CALL') GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 50"
+  "sql": "SELECT customer_domain, event_channel, count(*) as communications FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY AND event_channel IN ('EMAIL', 'SLACK', 'CALL', 'CRM') GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 50"
 }
 ```
 
@@ -498,7 +498,7 @@ Analyze email, call, Slack, and meeting activity.
 ```json
 {
   "tool": "outlit_query",
-  "sql": "SELECT toStartOfWeek(occurred_at) as week, count(*) as meetings, count(DISTINCT customer_id) as customers FROM events WHERE occurred_at >= now() - INTERVAL 90 DAY AND event_channel = 'CALENDAR' GROUP BY 1 ORDER BY 1"
+  "sql": "SELECT toStartOfWeek(occurred_at) as week, count(*) as calls, count(DISTINCT customer_id) as customers FROM events WHERE occurred_at >= now() - INTERVAL 90 DAY AND event_channel = 'CALL' GROUP BY 1 ORDER BY 1"
 }
 ```
 

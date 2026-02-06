@@ -5,7 +5,7 @@ description: Use when querying Outlit customer data via MCP tools (outlit_*). Tr
 
 # Outlit MCP Server
 
-Query customer intelligence data through 7 MCP tools covering customer profiles, revenue metrics, activity timelines, and raw SQL analytics access.
+Query customer intelligence data through 6 MCP tools covering customer and user profiles, revenue metrics, activity timelines, and raw SQL analytics access.
 
 ## Quick Start
 
@@ -40,9 +40,6 @@ Before writing SQL queries, discover available tables and columns:
 ```json
 // Discover SQL tables and columns
 { "tool": "outlit_schema" }
-
-// Discover available data entities
-{ "tool": "outlit_list_entities" }
 ```
 
 ### Common Patterns
@@ -54,7 +51,7 @@ Before writing SQL queries, discover available tables and columns:
   "tool": "outlit_list_customers",
   "billingStatus": "PAYING",
   "noActivityInLast": "30d",
-  "orderBy": "currentMrr",
+  "orderBy": "mrr_cents",
   "orderDirection": "desc"
 }
 ```
@@ -79,6 +76,70 @@ Before writing SQL queries, discover available tables and columns:
 
 ---
 
+## MCP Setup
+
+### Get an API Key
+
+Go to **Settings > MCP Integration** in the Outlit dashboard ([app.outlit.ai](https://app.outlit.ai)).
+
+### Server URLs
+
+| Environment | URL |
+|-------------|-----|
+| Production | `https://mcp.outlit.ai` |
+| Staging | `https://staging.mcp.outlit.ai` |
+| Local dev | `http://localhost:3001` |
+
+### Claude Code
+
+```bash
+claude mcp add outlit-mcp https://mcp.outlit.ai/sse -- --header "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Claude Desktop
+
+Add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "outlit-mcp": {
+      "url": "https://mcp.outlit.ai/sse",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+### Cursor
+
+Add to `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "outlit-mcp": {
+      "url": "https://mcp.outlit.ai/sse",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+### Verify Connection
+
+Call `outlit_schema` to confirm the connection is working:
+
+```json
+{ "tool": "outlit_schema" }
+```
+
+---
+
 ## Tool Selection Guide
 
 ```dot
@@ -99,10 +160,8 @@ digraph tool_selection {
     list_customers [label="outlit_list_customers" shape=ellipse style=filled fillcolor=lightblue];
     get_customer [label="outlit_get_customer" shape=ellipse style=filled fillcolor=lightblue];
     get_timeline [label="outlit_get_timeline" shape=ellipse style=filled fillcolor=lightblue];
-    get_revenue [label="outlit_get_customer_revenue" shape=ellipse style=filled fillcolor=lightblue];
     query [label="outlit_query (SQL)" shape=ellipse style=filled fillcolor=lightyellow];
     schema [label="outlit_schema" shape=ellipse style=filled fillcolor=lightgray];
-    list_entities [label="outlit_list_entities" shape=ellipse style=filled fillcolor=lightgray];
 
     start -> list [label="segments, at-risk lists"];
     start -> single [label="specific customer"];
@@ -111,14 +170,12 @@ digraph tool_selection {
 
     list -> list_customers;
 
-    single -> get_customer [label="overview + contacts"];
+    single -> get_customer [label="overview + revenue + users"];
     single -> get_timeline [label="activity history"];
-    single -> get_revenue [label="billing data"];
 
     aggregate -> query [label="write SQL"];
     aggregate -> schema [label="see columns first"];
 
-    discover -> list_entities;
     discover -> schema;
 }
 ```
@@ -128,12 +185,11 @@ digraph tool_selection {
 | Tool | Purpose | Key Params |
 |------|---------|------------|
 | `outlit_list_customers` | Filter/paginate customers | `billingStatus`, `noActivityInLast`, `mrrAbove` |
+| `outlit_list_users` | Filter/paginate users | `journeyStage`, `customerId`, `noActivityInLast` |
 | `outlit_get_customer` | Single customer details | `customer`, `include[]`, `timeframe` |
 | `outlit_get_timeline` | Activity history | `customer`, `channels[]`, `eventTypes[]` |
-| `outlit_get_customer_revenue` | Revenue + attribution | `customer`, `includeAttribution` |
 | `outlit_query` | Raw SQL queries | `sql`, `limit` |
 | `outlit_schema` | SQL table schemas | `table` (optional) |
-| `outlit_list_entities` | Available entities | (none) |
 
 ---
 
@@ -153,35 +209,59 @@ digraph tool_selection {
 
 ### outlit_list_customers
 
-Filter and paginate customers with risk signal indicators.
+Filter and paginate customers with activity and billing filters.
 
 | Parameter | Type | Values | Default |
 |-----------|------|--------|---------|
-| `status` | enum | PROVISIONAL, ACTIVE, CHURNED, MERGED | (all) |
 | `billingStatus` | enum | NONE, TRIALING, PAYING, CHURNED | (all) |
-| `type` | enum | COMPANY, INDIVIDUAL | (all) |
 | `hasActivityInLast` | enum | 7d, 14d, 30d, 90d | (none) |
 | `noActivityInLast` | enum | 7d, 14d, 30d, 90d | (none) |
 | `mrrAbove` | number | cents (e.g., 10000 = $100) | (none) |
 | `mrrBelow` | number | cents | (none) |
 | `search` | string | name or domain | (none) |
-| `orderBy` | enum | lastActivityAt, firstSeenAt, name, currentMrr | lastActivityAt |
+| `orderBy` | enum | last_activity_at, first_seen_at, name, mrr_cents | last_activity_at |
 | `orderDirection` | enum | asc, desc | desc |
-| `limit` | number | 1-100 | 20 |
+| `limit` | number | 1-1000 | 20 |
 | `cursor` | string | pagination token | (none) |
 
-**Risk Signals** (returned in response): `healthy` (≤7d), `at_risk` (7-30d), `critical` (30d+)
-
-**Example - High-value at-risk:**
+**Example - High-value inactive customers:**
 
 ```json
 {
   "billingStatus": "PAYING",
   "noActivityInLast": "30d",
   "mrrAbove": 50000,
-  "orderBy": "currentMrr",
+  "orderBy": "mrr_cents",
   "orderDirection": "desc",
   "limit": 25
+}
+```
+
+### outlit_list_users
+
+Filter and paginate users with journey stage and activity filters.
+
+| Parameter | Type | Values | Default |
+|-----------|------|--------|---------|
+| `journeyStage` | enum | DISCOVERED, SIGNED_UP, ACTIVATED, ENGAGED, INACTIVE | (all) |
+| `customerId` | string | Filter by customer ID | (none) |
+| `hasActivityInLast` | string | Nd, Nh, or Nm (e.g., 7d, 24h, 90m) | (none) |
+| `noActivityInLast` | string | Nd, Nh, or Nm (e.g., 30d, 2h) | (none) |
+| `search` | string | email or name | (none) |
+| `orderBy` | enum | last_activity_at, first_seen_at, user_email | last_activity_at |
+| `orderDirection` | enum | asc, desc | desc |
+| `limit` | number | 1-1000 | 20 |
+| `cursor` | string | pagination token | (none) |
+
+**Example - Inactive engaged users:**
+
+```json
+{
+  "journeyStage": "ENGAGED",
+  "noActivityInLast": "30d",
+  "orderBy": "last_activity_at",
+  "orderDirection": "desc",
+  "limit": 50
 }
 ```
 
@@ -193,16 +273,16 @@ Get complete customer profile with optional includes.
 |-----------|------|-------------|----------|
 | `customer` | string | Customer ID, domain, or name | Yes |
 | `include` | array | Data sections to fetch | No |
-| `timeframe` | enum | 7d, 30d, 90d | No (30d) |
+| `timeframe` | enum | 7d, 14d, 30d, 90d | No (30d) |
 
-**Include Options:** `contacts` (journey stages), `revenue` (MRR, LTV), `recentTimeline` (activity events), `behaviorMetrics` (activity counts)
+**Include Options:** `users` (journey stages), `revenue` (MRR, LTV), `recentTimeline` (activity events), `behaviorMetrics` (activity counts)
 
 **Example - Full profile:**
 
 ```json
 {
   "customer": "acme.com",
-  "include": ["contacts", "revenue", "recentTimeline", "behaviorMetrics"],
+  "include": ["users", "revenue", "recentTimeline", "behaviorMetrics"],
   "timeframe": "30d"
 }
 ```
@@ -216,41 +296,32 @@ Get activity timeline for a customer.
 | `customer` | string | Customer ID or domain | Yes |
 | `channels` | array | Filter by channel | No |
 | `eventTypes` | array | Filter by event type | No |
-| `startDate` | string | ISO 8601 timestamp | No |
-| `endDate` | string | ISO 8601 timestamp | No |
-| `limit` | number | 1-100 | No (50) |
+| `timeframe` | enum | 7d, 14d, 30d, 90d, all (default: 30d) | No |
+| `startDate` | string | ISO 8601 start (mutually exclusive with timeframe) | No |
+| `endDate` | string | ISO 8601 end (mutually exclusive with timeframe) | No |
+| `limit` | number | 1-1000 | No (50) |
 | `cursor` | string | Pagination token | No |
 
-**Channels:** `EMAIL`, `SLACK`, `INTERCOM`, `CALENDAR`, `CALL`, `DOCUMENT`
+**Channels:** `SDK`, `EMAIL`, `SLACK`, `CALL`, `CRM`, `BILLING`, `SUPPORT`, `INTERNAL`
 
-**Example - Email and meeting activity:**
-
-```json
-{
-  "customer": "cust_123",
-  "channels": ["EMAIL", "CALENDAR"],
-  "limit": 50
-}
-```
-
-### outlit_get_customer_revenue
-
-Get revenue metrics and attribution for a customer.
-
-| Parameter | Type | Description | Required |
-|-----------|------|-------------|----------|
-| `customer` | string | Customer ID or domain | Yes |
-| `timeframe` | enum | 30d, 90d, 12m, all | No (12m) |
-| `includeAttribution` | boolean | Include UTM/channel data | No (true) |
-| `includeBillingHistory` | boolean | Include billing events | No (true) |
-
-**Example:**
+**Example - Recent email and call activity:**
 
 ```json
 {
   "customer": "acme.com",
-  "includeAttribution": true,
-  "includeBillingHistory": true
+  "channels": ["EMAIL", "CALL"],
+  "timeframe": "30d",
+  "limit": 50
+}
+```
+
+**Example - Activity in a specific date range:**
+
+```json
+{
+  "customer": "acme.com",
+  "startDate": "2025-01-01T00:00:00Z",
+  "endDate": "2025-01-31T23:59:59Z"
 }
 ```
 
@@ -321,29 +392,11 @@ Get table schemas for SQL queries.
 
 **Response includes:** Column names, types, descriptions, and example queries.
 
-### outlit_list_entities
-
-List all queryable data entities.
-
-```json
-{ "tool": "outlit_list_entities" }
-```
-
-### outlit_get_entity_schema
-
-Get detailed schema for a specific entity.
-
-```json
-{ "tool": "outlit_get_entity_schema", "entity": "customer" }
-```
-
 ---
 
 ## Data Model
 
 ### Customer States
-
-**`status`:** PROVISIONAL (new), ACTIVE (active customer), CHURNED (no longer active), MERGED (combined with another)
 
 **`billingStatus`:** NONE (no billing), TRIALING (trial period), PAYING (active subscription), CHURNED (cancelled)
 

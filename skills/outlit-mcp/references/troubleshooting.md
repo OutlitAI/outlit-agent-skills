@@ -404,7 +404,6 @@ evt_789xyz      // Event ID
 
 | Issue | Solution |
 |-------|----------|
-| No risk signals | Only available for paying customers |
 | Can't combine hasActivity + noActivity | These are mutually exclusive |
 | Search not finding results | Search checks name and domain only |
 
