@@ -93,7 +93,7 @@ Go to **Settings > MCP Integration** in the Outlit dashboard ([app.outlit.ai](ht
 ### Claude Code
 
 ```bash
-claude mcp add outlit-mcp https://mcp.outlit.ai/sse -- --header "Authorization: Bearer YOUR_API_KEY"
+claude mcp add outlit https://mcp.outlit.ai/mcp -- --header "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Claude Desktop
@@ -103,8 +103,8 @@ Add to `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "outlit-mcp": {
-      "url": "https://mcp.outlit.ai/sse",
+    "outlit": {
+      "url": "https://mcp.outlit.ai/mcp",
       "headers": {
         "Authorization": "Bearer YOUR_API_KEY"
       }
@@ -120,8 +120,8 @@ Add to `.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "outlit-mcp": {
-      "url": "https://mcp.outlit.ai/sse",
+    "outlit": {
+      "url": "https://mcp.outlit.ai/mcp",
       "headers": {
         "Authorization": "Bearer YOUR_API_KEY"
       }
