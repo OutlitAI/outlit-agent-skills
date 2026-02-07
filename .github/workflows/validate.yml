@@ -40,23 +40,19 @@ jobs:
 
           echo "OK: SKILL.md frontmatter valid"
 
-      - name: Check referenced files exist
+      - name: Check skill is self-contained
         run: |
           SKILL_DIR="skills/outlit-sdk"
-          MISSING=0
 
-          for ref in references/frameworks.md references/auth-providers.md \
-                     references/consent-management.md references/api-reference.md \
-                     references/patterns.md scripts/detect_project.py scripts/install_sdk.sh; do
-            if [ ! -f "$SKILL_DIR/$ref" ]; then
-              echo "ERROR: Missing $SKILL_DIR/$ref"
-              MISSING=$((MISSING + 1))
-            else
-              echo "OK: $ref"
-            fi
-          done
+          # Skill should be a single SKILL.md with no other files
+          FILE_COUNT=$(find "$SKILL_DIR" -type f | wc -l)
+          if [ "$FILE_COUNT" -ne 1 ]; then
+            echo "ERROR: Expected 1 file in $SKILL_DIR, found $FILE_COUNT"
+            find "$SKILL_DIR" -type f
+            exit 1
+          fi
 
-          exit $MISSING
+          echo "OK: Skill is self-contained (SKILL.md only)"
 
       - name: Check root entry points
         run: |
