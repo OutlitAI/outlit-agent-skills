@@ -9,43 +9,20 @@ Query customer intelligence data through 6 MCP tools covering customer and user 
 
 ## Quick Start
 
-```dot
-digraph quickstart {
-    rankdir=LR;
-    node [shape=box];
+| What you need | Tool |
+|---------------|------|
+| Browse/filter customers | `outlit_list_customers` |
+| Browse/filter users | `outlit_list_users` |
+| Single customer deep dive | `outlit_get_customer` |
+| Customer activity history | `outlit_get_timeline` |
+| Custom analytics / aggregations | `outlit_query` (SQL) |
+| Discover tables & columns | `outlit_schema` |
 
-    start [label="What data?" shape=diamond];
-
-    customer_list [label="Multiple\ncustomers"];
-    customer_single [label="Single\ncustomer"];
-    analytics [label="Custom\nanalytics"];
-    discover [label="Schema\ndiscovery"];
-
-    list_tool [label="outlit_list_customers" shape=ellipse style=filled fillcolor=lightblue];
-    detail_tool [label="outlit_get_customer" shape=ellipse style=filled fillcolor=lightblue];
-    query_tool [label="outlit_query" shape=ellipse style=filled fillcolor=lightyellow];
-    schema_tool [label="outlit_schema" shape=ellipse style=filled fillcolor=lightgray];
-
-    start -> customer_list -> list_tool;
-    start -> customer_single -> detail_tool;
-    start -> analytics -> query_tool;
-    start -> discover -> schema_tool;
-}
-```
-
-### First Call: Schema Discovery
-
-Before writing SQL queries, discover available tables and columns:
-
-```json
-// Discover SQL tables and columns
-{ "tool": "outlit_schema" }
-```
+**Before writing SQL:** Always call `outlit_schema` first to discover available tables and columns.
 
 ### Common Patterns
 
 **Find at-risk customers:**
-
 ```json
 {
   "tool": "outlit_list_customers",
@@ -57,20 +34,10 @@ Before writing SQL queries, discover available tables and columns:
 ```
 
 **Revenue breakdown (SQL):**
-
 ```json
 {
   "tool": "outlit_query",
   "sql": "SELECT billing_status, count(*) as customers, sum(mrr_cents)/100 as mrr_dollars FROM customer_dimensions GROUP BY 1 ORDER BY 3 DESC"
-}
-```
-
-**Event analytics (SQL):**
-
-```json
-{
-  "tool": "outlit_query",
-  "sql": "SELECT event_type, count(*) FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
 }
 ```
 
@@ -90,106 +57,166 @@ Go to **Settings > MCP Integration** in the Outlit dashboard ([app.outlit.ai](ht
 | Staging | `https://staging.mcp.outlit.ai` |
 | Local dev | `http://localhost:3001` |
 
-### Claude Code
+### Auto-Detection Setup
 
-```bash
-claude mcp add outlit https://mcp.outlit.ai/mcp -- --header "Authorization: Bearer YOUR_API_KEY"
-```
+Detect the current environment and run the appropriate setup command:
 
-### Claude Desktop
+1. **Check for Claude Code** — If running inside Claude Code (check if `claude` CLI is available), run:
+   ```bash
+   claude mcp add outlit https://mcp.outlit.ai/mcp -- --header "Authorization: Bearer API_KEY"
+   ```
 
-Add to `claude_desktop_config.json`:
+2. **Check for Cursor** — If `.cursor/mcp.json` exists in the project or home directory, add to that file:
+   ```json
+   {
+     "mcpServers": {
+       "outlit": {
+         "url": "https://mcp.outlit.ai/mcp",
+         "headers": { "Authorization": "Bearer API_KEY" }
+       }
+     }
+   }
+   ```
 
-```json
-{
-  "mcpServers": {
-    "outlit": {
-      "url": "https://mcp.outlit.ai/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_API_KEY"
-      }
-    }
-  }
-}
-```
+3. **Check for Claude Desktop** — If `claude_desktop_config.json` exists at `~/Library/Application Support/Claude/` (macOS) or `%APPDATA%/Claude/` (Windows), add to that file:
+   ```json
+   {
+     "mcpServers": {
+       "outlit": {
+         "url": "https://mcp.outlit.ai/mcp",
+         "headers": { "Authorization": "Bearer API_KEY" }
+       }
+     }
+   }
+   ```
 
-### Cursor
-
-Add to `.cursor/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "outlit": {
-      "url": "https://mcp.outlit.ai/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_API_KEY"
-      }
-    }
-  }
-}
-```
+Ask the user for their API key if not provided. Replace `API_KEY` with the actual key.
 
 ### Verify Connection
 
-Call `outlit_schema` to confirm the connection is working:
-
-```json
-{ "tool": "outlit_schema" }
-```
+Call `outlit_schema` to confirm the connection is working.
 
 ---
 
-## Tool Selection Guide
+## Tool Reference
 
-```dot
-digraph tool_selection {
-    rankdir=TB;
-    node [shape=box fontsize=10];
-    edge [fontsize=9];
+### outlit_list_customers
 
-    start [label="What do you need?" shape=diamond];
+Filter and paginate customers.
 
-    // First level decisions
-    list [label="Browse/filter customers"];
-    single [label="Single customer deep dive"];
-    aggregate [label="Aggregated metrics"];
-    discover [label="Explore schema"];
+| Key Params | Values |
+|------------|--------|
+| `billingStatus` | NONE, TRIALING, PAYING, CHURNED |
+| `hasActivityInLast` / `noActivityInLast` | 7d, 14d, 30d, 90d (mutually exclusive) |
+| `mrrAbove` / `mrrBelow` | cents (10000 = $100) |
+| `search` | name or domain |
+| `orderBy` | last_activity_at, first_seen_at, name, mrr_cents |
+| `limit` | 1-1000 (default: 20) |
+| `cursor` | pagination token |
 
-    // Tool outcomes
-    list_customers [label="outlit_list_customers" shape=ellipse style=filled fillcolor=lightblue];
-    get_customer [label="outlit_get_customer" shape=ellipse style=filled fillcolor=lightblue];
-    get_timeline [label="outlit_get_timeline" shape=ellipse style=filled fillcolor=lightblue];
-    query [label="outlit_query (SQL)" shape=ellipse style=filled fillcolor=lightyellow];
-    schema [label="outlit_schema" shape=ellipse style=filled fillcolor=lightgray];
+### outlit_list_users
 
-    start -> list [label="segments, at-risk lists"];
-    start -> single [label="specific customer"];
-    start -> aggregate [label="reports, dashboards, SQL"];
-    start -> discover [label="what's available?"];
+Filter and paginate users.
 
-    list -> list_customers;
+| Key Params | Values |
+|------------|--------|
+| `journeyStage` | DISCOVERED, SIGNED_UP, ACTIVATED, ENGAGED, INACTIVE |
+| `customerId` | filter by customer |
+| `hasActivityInLast` / `noActivityInLast` | Nd, Nh, or Nm (e.g., 7d, 24h) — mutually exclusive |
+| `search` | email or name |
+| `orderBy` | last_activity_at, first_seen_at, email |
+| `limit` | 1-1000 (default: 20) |
+| `cursor` | pagination token |
 
-    single -> get_customer [label="overview + revenue + users"];
-    single -> get_timeline [label="activity history"];
+### outlit_get_customer
 
-    aggregate -> query [label="write SQL"];
-    aggregate -> schema [label="see columns first"];
+Single customer deep dive. Accepts customer ID, domain, or name.
 
-    discover -> schema;
-}
-```
+| Key Params | Values |
+|------------|--------|
+| `customer` | customer ID, domain, or name (required) |
+| `include` | `users`, `revenue`, `recentTimeline`, `behaviorMetrics` |
+| `timeframe` | 7d, 14d, 30d, 90d (default: 30d) |
 
-### Quick Reference
+Only request the `include` sections you need — omitting unused ones is faster.
 
-| Tool | Purpose | Key Params |
-|------|---------|------------|
-| `outlit_list_customers` | Filter/paginate customers | `billingStatus`, `noActivityInLast`, `mrrAbove` |
-| `outlit_list_users` | Filter/paginate users | `journeyStage`, `customerId`, `noActivityInLast` |
-| `outlit_get_customer` | Single customer details | `customer`, `include[]`, `timeframe` |
-| `outlit_get_timeline` | Activity history | `customer`, `channels[]`, `eventTypes[]` |
-| `outlit_query` | Raw SQL queries | `sql`, `limit` |
-| `outlit_schema` | SQL table schemas | `table` (optional) |
+### outlit_get_timeline
+
+Activity timeline for a customer.
+
+| Key Params | Values |
+|------------|--------|
+| `customer` | customer ID or domain (required) |
+| `channels` | SDK, EMAIL, SLACK, CALL, CRM, BILLING, SUPPORT, INTERNAL |
+| `eventTypes` | filter by specific event types |
+| `timeframe` | 7d, 14d, 30d, 90d, all (default: 30d) |
+| `startDate` / `endDate` | ISO 8601 (mutually exclusive with timeframe) |
+| `limit` | 1-1000 (default: 50) |
+| `cursor` | pagination token |
+
+### outlit_query
+
+Raw SQL against ClickHouse analytics tables. **SELECT only.** See [SQL Reference](references/sql-reference.md) for ClickHouse syntax and security model.
+
+| Key Params | Values |
+|------------|--------|
+| `sql` | SQL SELECT query (required) |
+| `limit` | 1-10000 (default: 1000) |
+
+Available tables: `events`, `customer_dimensions`, `user_dimensions`, `mrr_snapshots`.
+
+### outlit_schema
+
+Discover tables and columns. Call with no params for all tables, or `table: "events"` for a specific table. Always call this before writing SQL.
+
+---
+
+## Data Model
+
+**Billing status:** NONE → TRIALING → PAYING → CHURNED
+
+**Journey stages:** DISCOVERED → SIGNED_UP → ACTIVATED → ENGAGED → INACTIVE
+
+**Data formats:**
+- Monetary values in cents (divide by 100 for dollars)
+- Timestamps in ISO 8601
+- IDs with string prefixes (`cust_`, `contact_`, `evt_`)
+
+**Pagination:** All list endpoints use cursor-based pagination. Check `pagination.hasMore` before requesting more pages. Pass `pagination.nextCursor` as `cursor` for the next page.
+
+---
+
+## Best Practices
+
+1. **Call `outlit_schema` before writing SQL** — discover columns, don't guess
+2. **Use customer tools for single lookups** — don't use SQL for individual customer queries
+3. **Filter at the source** — use tool params and WHERE clauses, not post-fetch filtering
+4. **Only request needed includes** — omit unused `include` options for faster responses
+5. **Always add time filters to event SQL** — `WHERE occurred_at >= now() - INTERVAL N DAY`
+6. **Convert cents to dollars** — divide monetary values by 100 for display
+7. **Use LIMIT in SQL** — cap result sets to avoid large data transfers
+
+## Known Limitations
+
+1. **SQL is read-only** — no INSERT, UPDATE, DELETE
+2. **Organization isolation** — cannot query other organizations' data
+3. **Timeline requires a customer** — cannot query timeline across all customers
+4. **MRR filtering is post-fetch** — may be slower on large datasets in list_customers
+5. **Event queries need time filters** — queries without date ranges scan all data
+6. **ClickHouse syntax** — uses different functions than MySQL/PostgreSQL (see [SQL Reference](references/sql-reference.md))
+
+---
+
+## Tool Gotchas
+
+| Tool | Gotcha |
+|------|--------|
+| `outlit_list_customers` | `hasActivityInLast` and `noActivityInLast` are mutually exclusive |
+| `outlit_list_customers` | `search` checks name and domain only |
+| `outlit_get_customer` | `behaviorMetrics` depends on timeframe — extend it if empty |
+| `outlit_get_timeline` | `timeframe` and `startDate`/`endDate` are mutually exclusive |
+| `outlit_query` | Use ClickHouse date syntax: `now() - INTERVAL 30 DAY`, not `DATE_SUB()` |
+| `outlit_query` | `properties` column is JSON — use `JSONExtractString(properties, 'key')` |
 
 ---
 
@@ -197,280 +224,5 @@ digraph tool_selection {
 
 | Reference | When to Read |
 |-----------|--------------|
-| [Query Patterns](references/query-patterns.md) | SQL examples for common analytics: MRR, cohorts, events, churn |
-| [SQL Guide](references/sql-guide.md) | Complete table schemas, security model, ClickHouse tips |
-| [Workflows](references/workflows.md) | Multi-step analysis: churn risk, revenue dashboards, segmentation |
-| [Troubleshooting](references/troubleshooting.md) | Error codes, common issues, debugging strategies |
-| [Responses](references/responses.md) | Full response examples, parsing guidance |
-
----
-
-## Core Tools
-
-### outlit_list_customers
-
-Filter and paginate customers with activity and billing filters.
-
-| Parameter | Type | Values | Default |
-|-----------|------|--------|---------|
-| `billingStatus` | enum | NONE, TRIALING, PAYING, CHURNED | (all) |
-| `hasActivityInLast` | enum | 7d, 14d, 30d, 90d | (none) |
-| `noActivityInLast` | enum | 7d, 14d, 30d, 90d | (none) |
-| `mrrAbove` | number | cents (e.g., 10000 = $100) | (none) |
-| `mrrBelow` | number | cents | (none) |
-| `search` | string | name or domain | (none) |
-| `orderBy` | enum | last_activity_at, first_seen_at, name, mrr_cents | last_activity_at |
-| `orderDirection` | enum | asc, desc | desc |
-| `limit` | number | 1-1000 | 20 |
-| `cursor` | string | pagination token | (none) |
-
-**Example - High-value inactive customers:**
-
-```json
-{
-  "billingStatus": "PAYING",
-  "noActivityInLast": "30d",
-  "mrrAbove": 50000,
-  "orderBy": "mrr_cents",
-  "orderDirection": "desc",
-  "limit": 25
-}
-```
-
-### outlit_list_users
-
-Filter and paginate users with journey stage and activity filters.
-
-| Parameter | Type | Values | Default |
-|-----------|------|--------|---------|
-| `journeyStage` | enum | DISCOVERED, SIGNED_UP, ACTIVATED, ENGAGED, INACTIVE | (all) |
-| `customerId` | string | Filter by customer ID | (none) |
-| `hasActivityInLast` | string | Nd, Nh, or Nm (e.g., 7d, 24h, 90m) | (none) |
-| `noActivityInLast` | string | Nd, Nh, or Nm (e.g., 30d, 2h) | (none) |
-| `search` | string | email or name | (none) |
-| `orderBy` | enum | last_activity_at, first_seen_at, email | last_activity_at |
-| `orderDirection` | enum | asc, desc | desc |
-| `limit` | number | 1-1000 | 20 |
-| `cursor` | string | pagination token | (none) |
-
-**Example - Inactive engaged users:**
-
-```json
-{
-  "journeyStage": "ENGAGED",
-  "noActivityInLast": "30d",
-  "orderBy": "last_activity_at",
-  "orderDirection": "desc",
-  "limit": 50
-}
-```
-
-### outlit_get_customer
-
-Get complete customer profile with optional includes.
-
-| Parameter | Type | Description | Required |
-|-----------|------|-------------|----------|
-| `customer` | string | Customer ID, domain, or name | Yes |
-| `include` | array | Data sections to fetch | No |
-| `timeframe` | enum | 7d, 14d, 30d, 90d | No (30d) |
-
-**Include Options:** `users` (journey stages), `revenue` (MRR, LTV), `recentTimeline` (activity events), `behaviorMetrics` (activity counts)
-
-**Example - Full profile:**
-
-```json
-{
-  "customer": "acme.com",
-  "include": ["users", "revenue", "recentTimeline", "behaviorMetrics"],
-  "timeframe": "30d"
-}
-```
-
-### outlit_get_timeline
-
-Get activity timeline for a customer.
-
-| Parameter | Type | Description | Required |
-|-----------|------|-------------|----------|
-| `customer` | string | Customer ID or domain | Yes |
-| `channels` | array | Filter by channel | No |
-| `eventTypes` | array | Filter by event type | No |
-| `timeframe` | enum | 7d, 14d, 30d, 90d, all (default: 30d) | No |
-| `startDate` | string | ISO 8601 start (mutually exclusive with timeframe) | No |
-| `endDate` | string | ISO 8601 end (mutually exclusive with timeframe) | No |
-| `limit` | number | 1-1000 | No (50) |
-| `cursor` | string | Pagination token | No |
-
-**Channels:** `SDK`, `EMAIL`, `SLACK`, `CALL`, `CRM`, `BILLING`, `SUPPORT`, `INTERNAL`
-
-**Example - Recent email and call activity:**
-
-```json
-{
-  "customer": "acme.com",
-  "channels": ["EMAIL", "CALL"],
-  "timeframe": "30d",
-  "limit": 50
-}
-```
-
-**Example - Activity in a specific date range:**
-
-```json
-{
-  "customer": "acme.com",
-  "startDate": "2025-01-01T00:00:00Z",
-  "endDate": "2025-01-31T23:59:59Z"
-}
-```
-
----
-
-## Raw SQL: outlit_query
-
-Execute custom SQL queries against analytics data with built-in security.
-
-### Parameters
-
-| Parameter | Type | Description | Required |
-|-----------|------|-------------|----------|
-| `sql` | string | SQL SELECT query | Yes |
-| `limit` | number | Max rows (1-10000) | No (1000) |
-
-**Available tables:** `events`, `customer_dimensions`, `user_dimensions`, `mrr_snapshots`
-
-Use `outlit_schema` to discover columns before writing queries.
-
-**Security:** Only SELECT queries allowed. Organization data isolated via row policies. External access functions blocked.
-
-### Quick SQL Examples
-
-**MRR by billing status:**
-```json
-{
-  "tool": "outlit_query",
-  "sql": "SELECT billing_status, count(*) as customers, sum(mrr_cents)/100 as mrr FROM customer_dimensions GROUP BY 1"
-}
-```
-
-**Daily event volume:**
-```json
-{
-  "tool": "outlit_query",
-  "sql": "SELECT toDate(occurred_at) as day, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY GROUP BY 1 ORDER BY 1"
-}
-```
-
-**Top customers by activity:**
-```json
-{
-  "tool": "outlit_query",
-  "sql": "SELECT customer_id, customer_domain, count(*) as events FROM events WHERE occurred_at >= now() - INTERVAL 30 DAY GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 25"
-}
-```
-
-See [Query Patterns](references/query-patterns.md) for comprehensive SQL examples covering all common analytics use cases.
-
-See [SQL Guide](references/sql-guide.md) for complete table schemas, security model, and error handling.
-
----
-
-## Schema Discovery
-
-### outlit_schema
-
-Get table schemas for SQL queries.
-
-```json
-// All tables
-{ "tool": "outlit_schema" }
-
-// Specific table with columns
-{ "tool": "outlit_schema", "table": "events" }
-```
-
-**Response includes:** Column names, types, descriptions, and example queries.
-
----
-
-## Data Model
-
-### Customer States
-
-**`billingStatus`:** NONE (no billing), TRIALING (trial period), PAYING (active subscription), CHURNED (cancelled)
-
-### Contact Journey Stages
-
-```text
-DISCOVERED → SIGNED_UP → ACTIVATED → ENGAGED → INACTIVE
-```
-
-### Data Formats
-
-- **Monetary values:** Cents (100 = $1.00)
-- **Timestamps:** ISO 8601 (`2025-01-15T10:30:00Z`)
-- **IDs:** String prefixes (`cust_`, `contact_`, `evt_`)
-
----
-
-## Pagination
-
-All list endpoints use cursor-based pagination:
-
-```json
-// First request
-{ "tool": "outlit_list_customers", "limit": 25 }
-
-// Response
-{
-  "items": [...],
-  "pagination": {
-    "hasMore": true,
-    "nextCursor": "eyJsYXN0QWN0aXZpdHlBdCI6Li4ufQ==",
-    "total": 156
-  }
-}
-
-// Next page
-{ "tool": "outlit_list_customers", "limit": 25, "cursor": "eyJsYXN0QWN0aXZpdHlBdCI6Li4ufQ==" }
-```
-
-**Always check `pagination.hasMore` before requesting more pages.**
-
----
-
-## Best Practices
-
-1. **Start with schema discovery** — Call `outlit_schema` before writing SQL
-2. **Use filters at the source** — Filter in the query, not after fetching
-3. **Request only needed includes** — Omit `include` options you don't need
-4. **Prefer customer tools for single lookups** — Don't use SQL for single customer queries
-5. **Add time filters to SQL** — Always include `WHERE occurred_at >= ...` for event queries
-6. **Convert cents to dollars** — Divide monetary values by 100 for display
-7. **Use LIMIT in SQL** — Cap result sets to avoid large data transfers
-
-## Known Limitations
-
-1. **SQL is read-only**: No INSERT, UPDATE, DELETE operations
-2. **Organization isolation**: Cannot query data from other organizations
-3. **Timeline requires customer**: Cannot query timeline across all customers
-4. **MRR filtering is post-fetch**: May be slower on large datasets in list_customers
-5. **Event queries require time filters**: Queries without date ranges scan all data
-
----
-
-## Troubleshooting
-
-See [Troubleshooting Guide](references/troubleshooting.md) for detailed solutions.
-
-**Quick fixes:**
-
-| Issue | Solution |
-|-------|----------|
-| 401 Unauthorized | Check authentication, re-authorize MCP connection |
-| 404 Not Found | Verify customer ID/domain exists |
-| Empty results | Widen filters, check timeframe |
-| Slow queries | Add filters, reduce limit, add time constraints |
-| SQL table not found | Use `outlit_schema` to see available tables |
-| SQL syntax error | Check ClickHouse syntax (not MySQL/PostgreSQL) |
+| [SQL Reference](references/sql-reference.md) | ClickHouse syntax, security model, query patterns |
+| [Workflows](references/workflows.md) | Multi-step analysis: churn risk, revenue dashboards, account health |
