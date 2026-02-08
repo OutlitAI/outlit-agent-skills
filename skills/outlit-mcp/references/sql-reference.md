@@ -87,23 +87,9 @@ lagInFrame(total_mrr) OVER (ORDER BY snapshot_date) as prev_mrr
 
 ## Security Model
 
-### Allowed
-
-SELECT queries, JOINs between allowed tables, aggregations, window functions, CTEs, subqueries, standard ClickHouse functions.
-
-### Blocked
-
-| Blocked | Reason |
-|---------|--------|
-| INSERT / UPDATE / DELETE | Read-only access |
-| DROP / CREATE / ALTER | Schema modification |
-| `system.*`, `information_schema.*` | System tables |
-| `file()`, `url()`, `remote()`, `s3()` | External access |
-| `sleep()` | DoS prevention |
-| Multiple statements (`;`) | Query stacking |
-| SETTINGS clause | Configuration override |
-
-All queries are automatically filtered to your organization's data via row policies.
+- **Read-only access** — only SELECT queries are allowed
+- **Organization isolation** — queries are automatically scoped to your organization's data
+- Standard ClickHouse functions, JOINs, aggregations, window functions, CTEs, and subqueries are all supported
 
 ---
 
