@@ -49,14 +49,6 @@ Query customer intelligence data through 6 MCP tools covering customer and user 
 
 Go to **Settings > MCP Integration** in the Outlit dashboard ([app.outlit.ai](https://app.outlit.ai)).
 
-### Server URLs
-
-| Environment | URL |
-|-------------|-----|
-| Production | `https://mcp.outlit.ai` |
-| Staging | `https://staging.mcp.outlit.ai` |
-| Local dev | `http://localhost:3001` |
-
 ### Auto-Detection Setup
 
 Detect the current environment and run the appropriate setup command:
