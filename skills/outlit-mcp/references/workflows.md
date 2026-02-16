@@ -16,11 +16,15 @@ Use `outlit_list_customers` with `billingStatus: "PAYING"`, `noActivityInLast: "
 
 For each high-MRR customer, call `outlit_get_customer` with `include: ["users", "revenue", "behaviorMetrics"]` and `timeframe: "90d"`. Check `behaviorMetrics.activityCount` and `lastEmailAt` / `lastMeetingAt`.
 
-**Step 3: Check activity timeline**
+**Step 3: Search for negative signals**
+
+Call `outlit_search_customer_context` with `query: "frustrated with product, considering competitors, wants to cancel"` to surface relevant context across at-risk accounts.
+
+**Step 4: Check activity timeline**
 
 Call `outlit_get_timeline` with `channels: ["EMAIL", "CALL", "CRM"]` to see when engagement dropped and the last meaningful interaction.
 
-**Step 4: Aggregate churn patterns (SQL)**
+**Step 5: Aggregate churn patterns (SQL)**
 
 ```sql
 SELECT attribution_channel, count(*) as churned,
@@ -57,9 +61,11 @@ Deep dive on a single customer account.
 
 **Step 1:** Full profile — `outlit_get_customer` with `include: ["users", "revenue", "recentTimeline", "behaviorMetrics"]` and `timeframe: "30d"`.
 
-**Step 2:** Detailed timeline — `outlit_get_timeline` with `limit: 100` to see full activity history.
+**Step 2:** Known facts — `outlit_get_facts` to see all structured intelligence (concerns, feedback, preferences).
 
-**Step 3:** Peer comparison (SQL) — Compare to similar customers on same plan:
+**Step 3:** Detailed timeline — `outlit_get_timeline` with `limit: 100` to see full activity history.
+
+**Step 4:** Peer comparison (SQL) — Compare to similar customers on same plan:
 
 ```sql
 SELECT customer_id, name, mrr_cents/100 as mrr, last_activity_at

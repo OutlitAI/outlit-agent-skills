@@ -5,18 +5,32 @@ description: Use when querying Outlit customer data via MCP tools (outlit_*). Tr
 
 # Outlit MCP Server
 
-Query customer intelligence data through 6 MCP tools covering customer and user profiles, revenue metrics, activity timelines, and raw SQL analytics access.
+Query customer intelligence data through 8 MCP tools covering customer profiles, user activity, facts, semantic search, revenue metrics, and raw SQL analytics.
 
-## Quick Start
+## Quick Start — Which Tool to Use
 
 | What you need | Tool |
 |---------------|------|
 | Browse/filter customers | `outlit_list_customers` |
 | Browse/filter users | `outlit_list_users` |
 | Single customer deep dive | `outlit_get_customer` |
-| Customer activity history | `outlit_get_timeline` |
+| What happened with a customer? | `outlit_get_timeline` |
+| What do we know about a customer? | `outlit_get_facts` |
+| Question about a customer or topic | `outlit_search_customer_context` |
 | Custom analytics / aggregations | `outlit_query` (SQL) |
 | Discover tables & columns | `outlit_schema` |
+
+### Facts vs Search vs Timeline — When to Use Each
+
+These three tools all surface customer context but serve different purposes:
+
+| Tool | Purpose | Example |
+|------|---------|---------|
+| `outlit_get_facts` | **List all known facts** about a customer with status/confidence | "Show me everything we know about Acme" |
+| `outlit_search_customer_context` | **Find relevant context** for a specific question | "What has Acme said about pricing?" |
+| `outlit_get_timeline` | **See what happened** in chronological order | "What happened with Acme last week?" |
+
+**Rule of thumb:** Use `get_facts` to browse, `search_customer_context` to answer questions, `get_timeline` to see chronology.
 
 **Before writing SQL:** Always call `outlit_schema` first to discover available tables and columns.
 
@@ -30,6 +44,14 @@ Query customer intelligence data through 6 MCP tools covering customer and user 
   "noActivityInLast": "30d",
   "orderBy": "mrr_cents",
   "orderDirection": "desc"
+}
+```
+
+**Find context about a topic across all customers:**
+```json
+{
+  "tool": "outlit_search_customer_context",
+  "query": "data retention compliance concerns"
 }
 ```
 
@@ -94,7 +116,7 @@ Call `outlit_schema` to confirm the connection is working.
 
 ### outlit_list_customers
 
-Filter and paginate customers.
+Browse and filter customers. Returns paginated list with summary info.
 
 | Key Params | Values |
 |------------|--------|
@@ -108,7 +130,7 @@ Filter and paginate customers.
 
 ### outlit_list_users
 
-Filter and paginate users.
+Browse and filter users. Returns paginated list with activity info.
 
 | Key Params | Values |
 |------------|--------|
@@ -122,7 +144,7 @@ Filter and paginate users.
 
 ### outlit_get_customer
 
-Single customer deep dive. Accepts customer ID, domain, or name.
+Full details for a single customer. Accepts customer ID, domain, or name.
 
 | Key Params | Values |
 |------------|--------|
@@ -134,7 +156,7 @@ Only request the `include` sections you need — omitting unused ones is faster.
 
 ### outlit_get_timeline
 
-Activity timeline for a customer.
+Chronological activity timeline for a customer.
 
 | Key Params | Values |
 |------------|--------|
@@ -145,6 +167,28 @@ Activity timeline for a customer.
 | `startDate` / `endDate` | ISO 8601 (mutually exclusive with timeframe) |
 | `limit` | 1-1000 (default: 50) |
 | `cursor` | pagination token |
+
+### outlit_get_facts
+
+List all structured facts known about a customer. Use `outlit_search_customer_context` instead if you have a specific question.
+
+| Key Params | Values |
+|------------|--------|
+| `customer` | customer ID or domain (required) |
+| `timeframe` | 7d, 14d, 30d, 90d, all (default: 30d) |
+| `limit` | 1-100 (default: 50) |
+| `cursor` | pagination token |
+
+### outlit_search_customer_context
+
+Semantic + full-text search over customer context (facts and emails). Use this to answer specific questions. Omit `customer` to search across all customers.
+
+| Key Params | Values |
+|------------|--------|
+| `customer` | customer ID, domain, or name (optional — omit for cross-customer search) |
+| `query` | natural language question or topic (required) |
+| `topK` | 1-50 (default: 20) |
+| `occurredAfter` / `occurredBefore` | ISO 8601 datetime bounds |
 
 ### outlit_query
 
@@ -182,11 +226,12 @@ Discover tables and columns. Call with no params for all tables, or `table: "eve
 
 1. **Call `outlit_schema` before writing SQL** — discover columns, don't guess
 2. **Use customer tools for single lookups** — don't use SQL for individual customer queries
-3. **Filter at the source** — use tool params and WHERE clauses, not post-fetch filtering
-4. **Only request needed includes** — omit unused `include` options for faster responses
-5. **Always add time filters to event SQL** — `WHERE occurred_at >= now() - INTERVAL N DAY`
-6. **Convert cents to dollars** — divide monetary values by 100 for display
-7. **Use LIMIT in SQL** — cap result sets to avoid large data transfers
+3. **Use search for questions, get_facts for browsing** — search ranks by relevance, facts lists everything
+4. **Filter at the source** — use tool params and WHERE clauses, not post-fetch filtering
+5. **Only request needed includes** — omit unused `include` options for faster responses
+6. **Always add time filters to event SQL** — `WHERE occurred_at >= now() - INTERVAL N DAY`
+7. **Convert cents to dollars** — divide monetary values by 100 for display
+8. **Use LIMIT in SQL** — cap result sets to avoid large data transfers
 
 ## Known Limitations
 
@@ -207,6 +252,7 @@ Discover tables and columns. Call with no params for all tables, or `table: "eve
 | `outlit_list_customers` | `search` checks name and domain only |
 | `outlit_get_customer` | `behaviorMetrics` depends on timeframe — extend it if empty |
 | `outlit_get_timeline` | `timeframe` and `startDate`/`endDate` are mutually exclusive |
+| `outlit_search_customer_context` | Omit `customer` to search across all customers |
 | `outlit_query` | Use ClickHouse date syntax: `now() - INTERVAL 30 DAY`, not `DATE_SUB()` |
 | `outlit_query` | `properties` column is JSON — use `JSONExtractString(properties, 'key')` |
 
