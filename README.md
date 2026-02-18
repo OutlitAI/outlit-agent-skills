@@ -5,9 +5,9 @@ Agent Skills for integrating [Outlit](https://outlit.ai) customer journey analyt
 ## Installation
 
 ```sh
-npx add-skill outlitai/outlit-agent-skills
+npx skills add outlitai/outlit-agent-skills
 # or
-bunx add-skill outlitai/outlit-agent-skills
+bunx skills add outlitai/outlit-agent-skills
 ```
 
 ## Available Skills
