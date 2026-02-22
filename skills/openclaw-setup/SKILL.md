@@ -109,6 +109,17 @@ launchctl print gui/$(id -u)/ai.openclaw.gateway | rg "PATH =>"
 
 If they differ, fix LaunchAgent PATH and reload service (not just shell rc files).
 
+Preferred approach (no manual plist edits):
+
+```bash
+openclaw config set env.PATH "/Users/<user>/homebrew/bin:/Users/<user>/homebrew/sbin:/Users/<user>/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+openclaw gateway install --force --runtime node
+openclaw gateway restart
+```
+
+Operational rule:
+- Run service lifecycle commands from the intended OpenClaw install path (for example `/Users/<user>/homebrew/bin/openclaw`) so service `ProgramArguments` do not drift back to NVM paths.
+
 ## Configure agents and routing
 
 Set stable agent IDs (for example `main` plus any specialist agents) and bind channels to agent IDs.
@@ -261,13 +272,20 @@ These are easy to miss during setup hardening:
 launchctl print gui/$(id -u)/ai.openclaw.gateway | rg "PATH =>"
 ```
 
-- If missing, prepend Homebrew user prefix and reload service:
+- If missing, use config-managed env PATH + reinstall:
 
 ```bash
-/usr/libexec/PlistBuddy -c "Set :EnvironmentVariables:PATH /Users/<user>/homebrew/bin:<existing_path>" ~/Library/LaunchAgents/ai.openclaw.gateway.plist
-launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/ai.openclaw.gateway.plist || true
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.openclaw.gateway.plist
-launchctl kickstart -k gui/$(id -u)/ai.openclaw.gateway
+openclaw config set env.PATH "/Users/<user>/homebrew/bin:/Users/<user>/homebrew/sbin:/Users/<user>/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+openclaw gateway install --force --runtime node
+openclaw gateway restart
+```
+
+- If a binary still fails in daemon context and you cannot change system prefixes, symlink into `~/.local/bin` (already on daemon PATH):
+
+```bash
+mkdir -p ~/.local/bin
+ln -sf /Users/<user>/homebrew/bin/<tool> ~/.local/bin/<tool>
+openclaw gateway restart
 ```
 
 - Validate with:
@@ -328,6 +346,28 @@ Optional GitHub credential isolation per agent:
 - Auth files or per-agent credential files changed:
   - `openclaw gateway restart`
   - then send a fresh message/test command to force runtime re-evaluation
+- Daemon cannot resolve required CLI binaries:
+  - Prefer `openclaw config set env.PATH ...` + `openclaw gateway install --force --runtime node`
+  - Fallback: symlink specific binaries into `~/.local/bin` and restart gateway
+
+## QMD memory verification
+
+After switching to `memory.backend=qmd`, verify both config and runtime:
+
+```bash
+openclaw config get memory.backend memory.qmd.searchMode
+openclaw memory status --deep
+openclaw memory index --force
+```
+
+Expected:
+- `Provider: qmd (requested: qmd)` for each agent
+- per-agent qmd sqlite index path under `~/.openclaw/agents/<id>/qmd/xdg-cache/qmd/index.sqlite`
+
+If logs contain `spawn qmd ENOENT`:
+- Confirm `qmd` exists on daemon PATH (`~/.local/bin/qmd` or standard prefix)
+- Restart gateway and rerun index
+- Treat old ENOENT lines as historical unless new timestamps appear after the fix
 
 ## Fast recovery checklist
 
