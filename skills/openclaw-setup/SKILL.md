@@ -46,13 +46,68 @@ Keep only one long-lived `openclaw-gateway`.
 
 Use the right reload level for the change type:
 - `openclaw gateway restart` for config/model/agent/binding/skill-list updates.
-- `openclaw gateway uninstall && openclaw gateway install && openclaw gateway restart` for LaunchAgent-level env/path changes (for example PATH fixes for `gh`, `gog`, or other CLIs).
+- `openclaw gateway install --force` (or uninstall/install) when the service definition itself must be rewritten (for example runtime/path migration, service args changes, stale service file).
+- `openclaw gateway uninstall && openclaw gateway install && openclaw gateway restart` for full service rebuild.
 
 Always verify runtime env after reload:
 
 ```bash
 launchctl print gui/$(id -u)/ai.openclaw.gateway | rg "PATH =>"
 ```
+
+Important behavior:
+- `openclaw gateway restart` does not rewrite the LaunchAgent plist.
+- `openclaw gateway install --force` rewrites the plist and can overwrite manual plist edits.
+
+When service definition usually changes (use `install --force`):
+- Runtime/install path migration (for example NVM Node to Homebrew Node).
+- Gateway launch arguments changed (for example port/runtime flags).
+- Launch-time service env changed (for example daemon PATH/token env).
+- Service file drift/corruption or doctor reports stale/non-standard service config.
+
+Manual plist edits policy:
+- Not the default/recommended workflow.
+- Use only as a targeted launchd workaround when needed.
+- Prefer OpenClaw config + skill-level env where possible.
+- If you do edit plist manually, re-apply after any forced install.
+
+## Per-agent credentials pattern
+
+Use the right credential store for the right layer:
+- Model/provider auth: `~/.openclaw/agents/<agentId>/agent/auth-profiles.json`
+- CLI/tool auth (for example `gh`, `gog`, custom CLIs): skill env + tool-specific config directory
+
+Example (`gh` for one agent):
+- Set `skills.entries.<skill>.env.GH_CONFIG_DIR` to that agent directory.
+- Keep agent-specific files under `~/.openclaw/agents/<agentId>/agent/`.
+
+Do not assume provider auth files configure external CLIs.
+
+## Skill injection verification
+
+When a skill appears installed but the agent says a tool is unavailable, verify in this order:
+
+```bash
+openclaw skills info <skill>
+openclaw agent --agent <id> -m "Return ONLY JSON: {\"skills\":$SYSTEM_PROMPT_REPORT.skills.names}"
+openclaw agent --agent <id> -m "Run: which <bin> && <bin> --version"
+```
+
+If `skills info` is ready but runtime cannot find the binary, treat it as PATH/env mismatch in gateway runtime.
+
+## LaunchAgent vs shell PATH
+
+On macOS, interactive shell PATH (`.zshrc`, `.bashrc`) is not the same as launchd service PATH.
+OpenClaw gateway follows LaunchAgent env.
+
+Use these checks:
+
+```bash
+echo "$PATH"
+launchctl print gui/$(id -u)/ai.openclaw.gateway | rg "PATH =>"
+```
+
+If they differ, fix LaunchAgent PATH and reload service (not just shell rc files).
 
 ## Configure agents and routing
 
@@ -179,6 +234,24 @@ If needed, clear stale session records/transcripts for the affected channel and 
 - Assuming `skills.allowBundled` alone makes a skill injectable; binaries must also be resolvable by the running gateway service PATH
 - Assuming shell PATH equals LaunchAgent PATH; on macOS they often differ
 
+## Production gaps to close
+
+These are easy to miss during setup hardening:
+
+- Gateway still running from NVM Node path:
+  - `openclaw gateway status` may show `ProgramArguments` under `~/.nvm/.../node`.
+  - Prefer system/Homebrew Node to avoid breakage on NVM cleanup or upgrades.
+- Credentials directory permissions:
+  - Ensure `~/.openclaw/credentials` is private.
+  - Fix: `chmod 700 ~/.openclaw/credentials`
+- Memory semantic recall:
+  - If no embedding provider is configured, semantic memory search is effectively off.
+  - Check: `openclaw memory status --deep`
+  - Either configure provider auth or disable memory search explicitly.
+- Placeholder channel bindings left enabled:
+  - Remove or disable Discord placeholder bindings before production (`CHAN_*_PLACEHOLDER`).
+  - Keep only active channels to reduce routing ambiguity.
+
 ## Skill eligibility findings (gog)
 
 - `gog` can show as `ready` in CLI while still not being injected in agent prompt context if gateway PATH cannot resolve `gog`.
@@ -218,6 +291,43 @@ openclaw gateway restart
 ```
 
 - If agents still fail to recover draft context after a thread hop, check `tools.sessions.visibility` (self can block recovery lookups).
+
+Known edge case:
+- Some thread follow-ups may still lose prior draft context depending on session key transitions and history loading.
+- Treat critical actions (for example "send now") as requiring explicit confirmation text in the same message if continuity is uncertain.
+
+## Git identity per agent
+
+OpenClaw does not provide a dedicated per-agent git identity key.
+Use git path-scoped config so repos under an agent workspace get that identity.
+
+Example:
+
+```bash
+cat > ~/.openclaw/agents/anton/agent/gitconfig <<'EOF'
+[user]
+	name = Anton
+	email = anton@outlit.ai
+EOF
+
+git config --global includeIf.gitdir:/Users/<user>/OpenClaw/workspaces/anton/.path \
+  /Users/<user>/.openclaw/agents/anton/agent/gitconfig
+```
+
+Optional GitHub credential isolation per agent:
+- Add credential helper in that scoped file with `GH_CONFIG_DIR=/Users/<user>/.openclaw/agents/<id>/agent/gh`.
+
+## Post-change reload matrix
+
+- Agent/model/binding/tools/skill-list config changed:
+  - `openclaw gateway restart`
+- LaunchAgent PATH/env changed:
+  - `openclaw gateway uninstall`
+  - `openclaw gateway install`
+  - `openclaw gateway restart`
+- Auth files or per-agent credential files changed:
+  - `openclaw gateway restart`
+  - then send a fresh message/test command to force runtime re-evaluation
 
 ## Fast recovery checklist
 
