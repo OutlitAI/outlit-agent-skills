@@ -15,6 +15,7 @@ bunx skills add outlitai/outlit-agent-skills
 | Skill | Description |
 |-------|-------------|
 | outlit-sdk | Complete SDK integration for React, Next.js, Vue, Node.js |
+| openclaw-setup | Setup, hardening, and troubleshooting for OpenClaw on macOS with Slack Socket Mode |
 
 ## Usage
 
