@@ -42,17 +42,25 @@ outlit customers get acme.com --include users,revenue
 
 Auth lookup order (highest → lowest): `--api-key`, `OUTLIT_API_KEY`, stored config.
 
-## Output contract (agent-friendly)
+## Output contract
 
 * Interactive TTY → readable tables
 * Piped stdout / CI → **automatic JSON** (no flags needed; force with `--json`)
 * Every result includes **timestamps + source attribution** for traceability
 
-## Proactive churn insights (bonus)
+## Proactive churn insights
 
 Outlit also surfaces **proactive churn-risk insights** by correlating signals across tools (e.g., auth failures + support email + subsequent silence), with recommended actions.
 
-## Core commands (agent-friendly)
+## Key capabilities
+
+**Facts** — AI-extracted structured signals, not raw events. Returns business-level insights like "champion left", "budget approved", or "usage dropped 40%". Time-windowed so you can ask "what changed this quarter?"
+
+**Search** — Semantic natural-language search across all customer interactions and conversations. "pricing objections" matches discussions about cost concerns, budget pushback, etc. — not just keyword hits. Scope to one customer or search org-wide.
+
+**Users** — List and filter individual users across your customer base by journey stage (`CHAMPION`, `AT_RISK`, `CHURNED`), activity recency, customer, or name/email search. Great for identifying inactive champions or at-risk power users.
+
+## Core commands
 
 ```bash
 # List customers (filters)
@@ -70,6 +78,10 @@ outlit search "budget concerns" --customer acme.com --after 2025-01-01 --before 
 
 # Facts / signals
 outlit facts acme.com --timeframe 30d
+
+# Users (filter by journey stage, activity, customer)
+outlit users list --journey-stage CHAMPION
+outlit users list --no-activity-in 30d --journey-stage AT_RISK
 
 # SQL analytics (read-only)
 outlit schema
