@@ -52,13 +52,11 @@ Auth lookup order (highest → lowest): `--api-key`, `OUTLIT_API_KEY`, stored co
 
 Outlit also surfaces **proactive churn-risk insights** by correlating signals across tools (e.g., auth failures + support email + subsequent silence), with recommended actions.
 
-## Key capabilities
+## Signal extraction
 
 **Facts** — AI-extracted structured signals, not raw events. Returns business-level insights like "champion left", "budget approved", or "usage dropped 40%". Time-windowed so you can ask "what changed this quarter?"
 
 **Search** — Semantic natural-language search across all customer interactions and conversations. "pricing objections" matches discussions about cost concerns, budget pushback, etc. — not just keyword hits. Scope to one customer or search org-wide.
-
-**Users** — List and filter individual users across your customer base by journey stage (`CHAMPION`, `AT_RISK`, `CHURNED`), activity recency, customer, or name/email search. Great for identifying inactive champions or at-risk power users.
 
 ## Core commands
 
