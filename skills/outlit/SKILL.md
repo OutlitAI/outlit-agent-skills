@@ -1,13 +1,9 @@
 ---
 name: outlit
-display_name: Outlit
-description: >
-  One CLI for all your customer data — every interaction and conversation, structured for agents.
-  Query unified customer context (profiles, timelines, facts, search, analytics) with JSON output,
-  timestamps, and source attribution.
-homepage: https://docs.outlit.ai/cli/overview
-emoji: "🔦"
+description: Use when accessing Outlit customer intelligence through the `outlit` CLI or Outlit MCP tools, including customer lookups, timelines, facts, semantic search, revenue or churn analysis, SQL analytics, setup, or troubleshooting agent access to Outlit data.
 metadata:
+  homepage: "https://outlit.ai"
+  emoji: "🔦"
   openclaw:
     requires:
       bins: [outlit]
@@ -22,97 +18,86 @@ metadata:
         bins: [outlit]
 ---
 
-# Outlit 🔦
+# Outlit
 
-Outlit is **customer intelligence for agents**: a single CLI that joins product activity, web signals, billing, and conversations into a unified customer context graph + timeline.
+Use the highest-level Outlit interface already available.
 
-Choose this skill when you need cross-tool answers like:
-- "What changed for this customer this week?"
-- "Who's paying but inactive for 30 days?"
-- "What objections show up in conversations?"
-- "Which channels drive revenue?"
+Outlit joins product activity, conversations, billing, and web signals into a unified customer context graph and timeline for agents.
 
-## Quick start (CLI)
+## Choose the interface
+
+1. If `outlit_*` MCP tools are present, use MCP.
+2. Else if the `outlit` CLI is installed, use the CLI.
+3. Else guide setup:
+   - Coding agents: prefer the `outlit` CLI plus `outlit auth login`. Prefer this over MCP for terminal agents.
+   - MCP clients: use the workspace MCP URL from **Settings > MCP Integration**. Do not assume a shared hardcoded endpoint.
+
+## Quick chooser
+
+- Browse customers: `outlit_list_customers` or `outlit customers list`
+- Browse users: `outlit_list_users` or `outlit users list`
+- Single account deep dive: `outlit_get_customer` or `outlit customers get`
+- Chronology: `outlit_get_timeline` or `outlit customers timeline`
+- Known signals: `outlit_get_facts` or `outlit facts`
+- Specific question or topic: `outlit_search_customer_context` or `outlit search`
+- Custom analytics: `outlit_schema` + `outlit_query`, or `outlit schema` + `outlit sql`
+
+Use customer lookups before SQL. SQL is for aggregates, joins, cohorts, and custom reporting.
+
+## Working rules
+
+- Use `facts` to browse known intelligence, `search` to answer a specific question, and `timeline` to inspect chronology.
+- Call schema before writing SQL.
+- Add explicit time filters to event SQL.
+- Divide money fields by `100` for display.
+- Request only the fields or `include` sections you need.
+
+For ClickHouse syntax and query patterns, read [references/sql-reference.md](references/sql-reference.md).
+
+## Output behavior
+
+- Interactive CLI: readable tables
+- Piped CLI output: automatic JSON
+- Force JSON: `--json`
+- Results include timestamps and source attribution when available
+
+## Facts vs Search vs Timeline
+
+- Use `facts` to list what Outlit already knows about an account.
+- Use `search` for a specific question or theme, including cross-customer questions.
+- Use `timeline` when order and sequence matter.
+
+## Setup
+
+### Coding agents
 
 ```bash
 npm install -g @outlit/cli   # or: brew install outlitai/tap/outlit
-outlit auth login            # or: outlit auth login --key ok_your_api_key_here
+outlit auth login
 outlit customers get acme.com --include users,revenue
 ```
 
-Auth lookup order (highest → lowest): `--api-key`, `OUTLIT_API_KEY`, stored config.
+Auth resolution order: `--api-key`, `OUTLIT_API_KEY`, stored credentials.
 
-## Output contract
+### MCP clients
 
-* Interactive TTY → readable tables
-* Piped stdout / CI → **automatic JSON** (no flags needed; force with `--json`)
-* Every result includes **timestamps + source attribution** for traceability
+Get the workspace URL and API key from **Settings > CLI & MCP** in Outlit. Use that URL with an `Authorization: Bearer ...` header.
 
-## Proactive churn insights
+Verify the connection with `outlit_schema` or `outlit schema`.
 
-Outlit also surfaces **proactive churn-risk insights** by correlating signals across tools (e.g., auth failures + support email + subsequent silence), with recommended actions.
-
-## Signal extraction
-
-**Facts** — AI-extracted structured signals, not raw events. Returns business-level insights like "champion left", "budget approved", or "usage dropped 40%". Time-windowed so you can ask "what changed this quarter?"
-
-**Search** — Semantic natural-language search across all customer interactions and conversations. "pricing objections" matches discussions about cost concerns, budget pushback, etc. — not just keyword hits. Scope to one customer or search org-wide.
-
-## Core commands
-
-```bash
-# List customers (filters)
-outlit customers list --billing-status PAYING --no-activity-in 30d
-
-# Get a profile (limit included sections)
-outlit customers get acme.com --include users,revenue,recentTimeline --timeframe 30d
-
-# Timeline (scoped)
-outlit customers timeline acme.com --timeframe 90d --channels EMAIL,SLACK --limit 50
-
-# Natural language search (org-wide or scoped)
-outlit search "pricing objections"
-outlit search "budget concerns" --customer acme.com --after 2025-01-01 --before 2025-03-31
-
-# Facts / signals
-outlit facts acme.com --timeframe 30d
-
-# Users (filter by journey stage, activity, customer)
-outlit users list --journey-stage CHAMPION
-outlit users list --no-activity-in 30d --journey-stage AT_RISK
-
-# SQL analytics (read-only)
-outlit schema
-outlit sql "SELECT event_type, COUNT(*) FROM events GROUP BY 1"
-```
-
-## MCP (for agents that support MCP)
-
-Endpoint: `https://mcp.outlit.ai/mcp`
-
-Auth header: `Authorization: Bearer YOUR_API_KEY`
-
-Outlit MCP tools include: list customers/users, get customer/timeline/facts, search customer context, run SQL, inspect schema.
-
-## Configure AI agents fast
-
-```bash
-outlit setup --yes
-```
-
-This auto-detects supported agents and configures MCP where applicable. It can also set up OpenClaw specifically:
-
-```bash
-outlit setup openclaw
-outlit doctor            # diagnose setup issues (missing key, unconfigured agents)
-```
-
-## Links (go deeper)
+## Docs
 
 - Docs home: https://docs.outlit.ai/
-- Quick Start: https://docs.outlit.ai/tracking/quickstart
-- CLI Overview: https://docs.outlit.ai/cli/overview
-- CLI Command Reference: https://docs.outlit.ai/cli/commands
-- AI Agent Setup: https://docs.outlit.ai/cli/ai-agents
-- MCP Integration: https://docs.outlit.ai/ai-integrations/mcp
-- Customer Context Graph: https://docs.outlit.ai/concepts/customer-context-graph
+- Agent skills: https://docs.outlit.ai/ai-integrations/skills
+- CLI overview: https://docs.outlit.ai/cli/overview
+- CLI commands: https://docs.outlit.ai/cli/commands
+- AI agent setup: https://docs.outlit.ai/cli/ai-agents
+- MCP integration: https://docs.outlit.ai/ai-integrations/mcp
+- Customer context graph: https://docs.outlit.ai/concepts/customer-context-graph
+
+## Common prompts
+
+- "What changed for this customer this week?"
+- "Who is paying but inactive for 30 days?"
+- "What pricing objections show up in conversations?"
+- "Which channels are driving revenue?"

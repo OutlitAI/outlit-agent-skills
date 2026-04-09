@@ -1,20 +1,23 @@
 # Outlit Agent Skills
 
-Agent Skills for integrating [Outlit](https://outlit.ai) customer journey analytics.
+Agent skills for working with [Outlit](https://outlit.ai).
 
 ## Installation
 
 ```sh
-npx skills add outlitai/outlit-agent-skills
+npx skills add outlitai/outlit-agent-skills --skill outlit -g
 # or
-bunx skills add outlitai/outlit-agent-skills
+bunx skills add outlitai/outlit-agent-skills --skill outlit -g
 ```
+
+Install `outlit-sdk` separately when you need tracking or instrumentation help.
 
 ## Available Skills
 
 | Skill | Description |
 |-------|-------------|
-| outlit-sdk | Complete SDK integration for React, Next.js, Vue, Node.js |
+| outlit | Customer intelligence through the Outlit CLI or MCP tools |
+| outlit-sdk | Outlit SDK integration for product tracking |
 
 ## Usage
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Outlit"
+  short_description: "Customer intelligence for agents"
+  default_prompt: "Use $outlit to answer a customer intelligence question with the best available Outlit interface."
