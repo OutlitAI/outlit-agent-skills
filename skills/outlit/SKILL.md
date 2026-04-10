@@ -30,7 +30,7 @@ Outlit joins product activity, conversations, billing, and web signals into a un
 2. Else if the `outlit` CLI is installed, use the CLI.
 3. Else guide setup:
    - Coding agents: prefer the `outlit` CLI plus `outlit auth login`. Prefer this over MCP for terminal agents.
-   - MCP clients: use the workspace MCP URL from **Settings > MCP Integration**. Do not assume a shared hardcoded endpoint.
+   - MCP clients: use the workspace MCP URL from **Settings > CLI & MCP**. Auth may use OAuth or an API key depending on the client. Do not assume a shared hardcoded endpoint.
 
 ## Quick chooser
 
@@ -38,7 +38,9 @@ Outlit joins product activity, conversations, billing, and web signals into a un
 - Browse users: `outlit_list_users` or `outlit users list`
 - Single account deep dive: `outlit_get_customer` or `outlit customers get`
 - Chronology: `outlit_get_timeline` or `outlit customers timeline`
-- Known signals: `outlit_get_facts` or `outlit facts`
+- Known signals for an account: `outlit_get_facts` or `outlit facts list`
+- Exact fact by id: `outlit facts get`
+- Exact source behind a fact or search hit: `outlit sources get`
 - Specific question or topic: `outlit_search_customer_context` or `outlit search`
 - Custom analytics: `outlit_schema` + `outlit_query`, or `outlit schema` + `outlit sql`
 
@@ -46,7 +48,10 @@ Use customer lookups before SQL. SQL is for aggregates, joins, cohorts, and cust
 
 ## Working rules
 
-- Use `facts` to browse known intelligence, `search` to answer a specific question, and `timeline` to inspect chronology.
+- Use `facts list` to browse known intelligence for one account.
+- Use `facts get` when you already have a fact id and need the canonical fact payload.
+- Use `sources get` when a fact or search result points to a specific source and you need the exact artifact.
+- Use `search` to answer a specific question, and `timeline` to inspect chronology.
 - Call schema before writing SQL.
 - Add explicit time filters to event SQL.
 - Divide money fields by `100` for display.
@@ -63,8 +68,10 @@ For ClickHouse syntax and query patterns, read [references/sql-reference.md](ref
 
 ## Facts vs Search vs Timeline
 
-- Use `facts` to list what Outlit already knows about an account.
+- Use `facts list` to list what Outlit already knows about an account.
+- Use `facts get` when you already have a fact id and need that exact fact.
 - Use `search` for a specific question or theme, including cross-customer questions.
+- Use `sources get` when you need the exact email, call, calendar event, or ticket behind a fact or search hit.
 - Use `timeline` when order and sequence matter.
 
 ## Setup
@@ -81,7 +88,9 @@ Auth resolution order: `--api-key`, `OUTLIT_API_KEY`, stored credentials.
 
 ### MCP clients
 
-Get the workspace URL and API key from **Settings > CLI & MCP** in Outlit. Use that URL with an `Authorization: Bearer ...` header.
+Get the workspace URL from **Settings > CLI & MCP** in Outlit.
+
+MCP clients can authenticate with OAuth or an API key, depending on the client. Do not assume API key-only auth or OAuth-only auth.
 
 Verify the connection with `outlit_schema` or `outlit schema`.
 
