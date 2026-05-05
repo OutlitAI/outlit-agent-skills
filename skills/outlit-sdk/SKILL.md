@@ -1,195 +1,281 @@
 ---
 name: outlit-sdk
-description: Integrate Outlit SDK for customer context for agents. Triggers when users need to add Outlit to any web framework (React, Next.js, Vue, Nuxt, Svelte, Angular, Astro), server runtime (Node.js, Express, Fastify), desktop app (Tauri, Electron), or need help with Outlit event tracking, user identity, consent management, analytics migration, activation events, billing lifecycle, or troubleshooting existing Outlit installations.
+description: Use when integrating Outlit tracking into web, server, native, or desktop apps; adding SDK event tracking, identity, consent, activation, billing, visitor tracking, customerId attribution, or troubleshooting @outlit/browser, @outlit/node, or the Rust outlit crate.
 ---
 
 # Outlit SDK Integration
 
-Decision-tree-driven guide for integrating Outlit customer journey tracking. Detects what it can from the codebase, asks only what it must, and links to official docs for implementation details.
+Decision-tree guide for adding product and website tracking to the Outlit customer context graph. Detect first, ask only when needed, keep changes small, and prefer official docs for framework-specific code.
 
 ## Branching Check
 
-Before anything else, check if Outlit is already installed:
+Before anything else, check whether Outlit is already installed:
 
-1. Look for `@outlit/browser`, `@outlit/node`, or `outlit` (Rust crate) in `package.json` or `Cargo.toml`
-2. If **not installed** -> go to [Phase 1: Quick Connect](#phase-1-quick-connect)
-3. If **already installed** -> go to [Already Installed](#already-installed)
+1. Look for `@outlit/browser`, `@outlit/node`, `outlit` in `Cargo.toml`, `https://cdn.outlit.ai`, or existing `outlit.init(...)` / `new Outlit(...)` calls.
+2. If not installed, go to [Phase 1: Quick Connect](#phase-1-quick-connect).
+3. If installed, go to [Already Installed](#already-installed).
 
 ## Already Installed
 
-Ask the user what they need help with:
+Ask what they need help with, then run detection before changing code:
 
-- **Add event tracking** -> Run detection, then go to [Decision 7: Event Tracking](#decision-7-event-tracking). Fetch the relevant framework doc from the [Doc URL Map](#doc-url-map) for implementation patterns.
-- **Add/change auth integration** -> Run detection, then go to [Decision 3: Auth & Identity](#decision-3-auth--identity). Fetch the framework doc and [identity resolution](https://docs.outlit.ai/concepts/identity-resolution) doc.
-- **Add consent management** -> Go to [Decision 2: Consent Stance](#decision-2-consent-stance). Fetch the framework doc's consent section.
-- **Add server-side tracking** -> Go to [Decision 1: App Type & SDK](#decision-1-app-type--sdk-package) for the server package, then fetch the [Node.js](https://docs.outlit.ai/tracking/server/nodejs) or [Rust](https://docs.outlit.ai/tracking/server/rust) doc.
-- **Add billing/Stripe integration** -> Go to [Decision 6: Billing Integration](#decision-6-billing-integration). Fetch the [customer journey](https://docs.outlit.ai/concepts/customer-journey) doc.
-- **Add activation tracking** -> Go to [Decision 5: Activation Event](#decision-5-activation-event). Fetch the [customer journey](https://docs.outlit.ai/concepts/customer-journey) doc.
-- **Migrate from other analytics** -> Run detection, then go to [Decision 4: Existing Analytics](#decision-4-existing-analytics-strategy).
-- **Debug/troubleshoot** -> Go to [Troubleshooting](#troubleshooting).
+- Add event tracking -> [Decision 6: Event Tracking](#decision-6-event-tracking)
+- Add/change auth identity -> [Decision 2: Identity](#decision-2-identity)
+- Add consent management -> [Decision 1: Consent](#decision-1-consent)
+- Add server/native tracking -> [Decision 7: Server and Native Tracking](#decision-7-server-and-native-tracking)
+- Add activation tracking -> [Decision 4: Activation](#decision-4-activation)
+- Add billing/Stripe integration -> [Decision 5: Billing](#decision-5-billing)
+- Migrate from other analytics -> [Decision 3: Existing Analytics](#decision-3-existing-analytics)
+- Debug/troubleshoot -> [Troubleshooting](#troubleshooting)
+
+## Current API Guardrails
+
+These points prevent the most common stale integrations:
+
+- All current ingest SDKs use `publicKey` values that start with `pk_`. Do not use `privateKey`, `OUTLIT_PRIVATE_KEY`, `visitorId`, or `event` for `@outlit/node` examples.
+- Node server events use `new Outlit({ publicKey })` and `track({ eventName, email | userId | fingerprint | customerId, properties })`.
+- Browser anonymous events are valid without identity. Server `track()` requires at least one of `email`, `userId`, `fingerprint`, or `customerId`.
+- Server `identify()` requires `email` or `userId`. `customerId` is optional account/workspace attribution, not a user identity by itself.
+- Use `customerId` for your system-owned account/workspace/customer ID. The TypeScript SDK no longer uses `customerDomain`; do not add it.
+- Browser `setUser()` can be called before tracking is enabled and will be applied after consent. Browser `identify()` requires tracking to already be enabled.
+- `user.activate()` is the only journey stage new integrations should send manually. `user.engaged()` and `user.inactive()` are deprecated; Outlit derives engagement and inactivity from tracked product activity.
+- Billing is account-level. In TypeScript billing methods, prefer `customerId`; `stripeCustomerId` is compatibility-only. In Rust billing methods still start with a domain and can add `.customer_id(...)`.
+- Event names should be `snake_case`. SDK events get UUIDv7 event IDs automatically; do not generate event IDs manually.
 
 ## Phase 1: Quick Connect
 
-Goal: get events flowing in ~2 minutes so the user sees "Connected" on their Outlit onboarding screen. Zero user decisions required.
+Goal: get data flowing quickly so the user can see Outlit connection/activity without making product-strategy decisions.
 
-### Step 1: Detect Framework & Package Manager
+### Step 1: Detect Framework and Package Manager
 
-Use glob/grep to check:
+Check:
 
-- **Framework:** Check `package.json` dependencies for `next`, `vue`, `nuxt`, `react`, `svelte`, `@sveltejs/kit`, `@angular/core`, `astro`, `express`, `fastify`. Check for `Cargo.toml` with `tauri` or `outlit`.
-- **Package manager:** Check for `bun.lockb` (bun), `pnpm-lock.yaml` (pnpm), `yarn.lock` (yarn), `package-lock.json` (npm). Use the first match found.
+| Signal | How to detect |
+|--------|---------------|
+| Framework | `package.json` deps: `next`, `react`, `vue`, `nuxt`, `svelte`, `@sveltejs/kit`, `@angular/core`, `astro`, `express`, `fastify`, `electron`, `react-native`; `Cargo.toml` deps: `tauri`, `outlit` |
+| Package manager | `bun.lockb`, `bun.lock`, `pnpm-lock.yaml`, `yarn.lock`, `package-lock.json` |
+| Current Outlit | `@outlit/browser`, `@outlit/node`, CDN script, Rust crate, `outlit.init`, `OutlitProvider`, `OutlitPlugin`, `new Outlit` |
 
-### Step 2: Install SDK
+### Step 2: Choose SDK
 
-Based on detected framework:
+| App surface | Use |
+|-------------|-----|
+| Browser app: React, Next.js, Vue, Nuxt, SvelteKit, Angular, Astro, vanilla, script tag | `@outlit/browser` |
+| Node backend: API routes, server actions, Express, Fastify, jobs, webhooks | `@outlit/node` |
+| Native JS without browser storage: React Native, CLI, desktop main process | `@outlit/node` with a stable `fingerprint` |
+| Rust backend, CLI, or Tauri backend | Rust crate `outlit` |
+| Electron renderer or webview | `@outlit/browser`; use `@outlit/node` in main process only if tracking native/background events |
 
-- Browser app (React, Next.js, Vue, Nuxt, Svelte, Angular, Astro) -> `@outlit/browser`
-- Server app (Express, Fastify, Node.js) -> `@outlit/node`
-- Tauri -> `outlit` Rust crate via `cargo add outlit`
-- Electron -> `@outlit/browser`
-
-Install using the detected package manager.
+Install with the detected manager. Prefer `bun add` when the repo is a Bun workspace.
 
 ### Step 3: Add Public Key
 
-Ask the user for their Outlit public key. They get it from **Outlit dashboard -> Settings -> Website Tracking** or from the onboarding screen.
+Ask for the Outlit public key from **Outlit dashboard -> Settings -> Website Tracking** or onboarding.
 
-Add to environment variables with the correct framework prefix:
+Use the framework's public env convention:
 
 | Framework | Env var |
 |-----------|---------|
 | Next.js | `NEXT_PUBLIC_OUTLIT_KEY` |
-| Vite (Vue, Svelte, React+Vite) | `VITE_OUTLIT_KEY` |
-| Create React App | `REACT_APP_OUTLIT_KEY` |
+| Vite / Vue / React+Vite / Svelte | `VITE_OUTLIT_KEY` |
+| SvelteKit | `PUBLIC_OUTLIT_KEY` |
 | Nuxt | `NUXT_PUBLIC_OUTLIT_KEY` |
-| Angular | Add to `environment.ts` |
 | Astro | `PUBLIC_OUTLIT_KEY` |
-| Server apps | `OUTLIT_KEY` |
+| Create React App | `REACT_APP_OUTLIT_KEY` |
+| Angular | `environment.ts` or equivalent |
+| Server/native | `OUTLIT_KEY` or `OUTLIT_PUBLIC_KEY` |
 
 ### Step 4: Minimal Setup
 
-Fetch the framework-specific doc from the [Doc URL Map](#doc-url-map) and implement only the minimal setup — provider/init with just the `publicKey`, no auth, no consent, no custom events.
+Fetch the framework doc from the [Doc URL Map](#doc-url-map) and implement only startup initialization:
 
-For React-based frameworks this means wrapping the app with `OutlitProvider`. For Vue it means installing the `OutlitPlugin`. For server apps it means creating an Outlit instance.
+- React/Next: prefer `OutlitProvider` from `@outlit/browser/react` in a client boundary.
+- Vue/Nuxt: use `OutlitPlugin` from `@outlit/browser/vue`.
+- Plain browser/script: use `@outlit/browser` or CDN script.
+- Server/native: create one `Outlit` instance where the process can reuse it.
+
+Do not add custom events, activation, billing, auth, or consent until basic tracking is working unless the user asked for a full integration immediately.
 
 ### Step 5: Verify Connection
 
-Tell the user to:
+Verify with one or more:
 
-1. Run their dev server
-2. Open the app in a browser
-3. Check the Outlit onboarding screen for the **"Connected"** badge
-4. Or check DevTools -> Network for requests to `app.outlit.ai/api/i/v1/...` returning 200
+- DevTools Network has `https://app.outlit.ai/api/i/v1/<publicKey>/events` returning success.
+- Browser console has no `[Outlit]` warnings.
+- Server code calls `await outlit.flush()` or `await outlit.shutdown()` before process/serverless exit.
+- Outlit onboarding/dashboard shows recent activity or connected tracking.
 
-Once connected, ask: **"Events are flowing. Ready to set up the full integration?"**
-
-If yes -> continue to Phase 2. If no -> they can come back later (the skill will detect the existing install).
+Then ask whether to continue with the full integration.
 
 ## Phase 2: Full Integration
 
-Run the full detection first, then walk through each decision.
-
-### Full Detection
-
-Use grep/glob to detect all of the following before starting the decision tree:
+Run detection and present what you found before changing behavior:
 
 | Signal | How to detect |
-|--------|--------------|
-| Auth provider | Deps: `@clerk/nextjs`, `@clerk/clerk-react`, `next-auth`, `@auth/core`, `@supabase/auth-helpers-nextjs`, `@supabase/ssr`, `@auth0/auth0-react`, `@auth0/nextjs-auth0`, `firebase`, `@firebase/auth` |
-| Billing provider | Deps: `stripe`, `@stripe/stripe-js`, `@paddle/paddle-js`, `chargebee` |
-| Existing analytics | Deps: `posthog-js`, `@posthog/node`, `@amplitude/analytics-browser`, `@amplitude/analytics-node`, `mixpanel-browser`, `@segment/analytics-next`, `@segment/analytics-node` |
-| Analytics abstraction | Grep for files named `analytics.ts`, `analytics.js`, `tracking.ts`, `tracking.js` in `lib/`, `utils/`, `helpers/`, `services/` that import 2+ analytics libraries |
-| EU/consent signals | Deps: `cookiebot`, `@onetrust/*`, `cookie-consent`, or grep for existing consent/cookie banner components |
-| App type | Deps: `@tauri-apps/api`, `electron`, `react-native` |
-| Activation patterns | Grep for onboarding routes/components, "first" resource creation handlers, invite flows |
+|--------|---------------|
+| Auth provider | `@clerk/*`, `next-auth`, `@auth/core`, `@supabase/*`, `@auth0/*`, `firebase`, custom session/auth files |
+| Account model | `organization`, `workspace`, `team`, `account`, `tenant`, `customerId`, Stripe customer mapping |
+| Billing provider | `stripe`, `@stripe/stripe-js`, `paddle`, `chargebee`, webhook routes |
+| Existing analytics | `posthog-js`, `@posthog/node`, Amplitude, Mixpanel, Segment, analytics wrappers |
+| Consent | Cookiebot, OneTrust, cookie banner components, CMP callbacks |
+| Native/device | Tauri, Electron main process, React Native, CLI, mobile storage |
+| Activation | first workspace/project/resource, first successful integration, invite sent, report generated, first meaningful feature success |
+| Calendar embeds | Cal.com or Calendly embed code |
 
-Present a summary of what was detected to the user before proceeding.
-
-### Decision 1: App Type & SDK Package
-
-Auto-resolved from Phase 1 detection. If hybrid (e.g., Next.js with API routes that need server tracking), install both `@outlit/browser` and `@outlit/node`.
-
-- Electron -> `@outlit/browser`
-- Tauri -> `outlit` Rust crate
-- React Native -> `@outlit/browser` (uses fingerprint instead of cookies)
-
-### Decision 2: Consent Stance
+## Decision 1: Consent
 
 | Detection | Recommendation |
-|-----------|---------------|
-| Existing CMP/cookie banner library | `autoTrack: false`, integrate with their existing CMP's consent callback to call `enableTracking()` |
-| EU signals but no CMP | `autoTrack: false`, mention they need a consent solution but don't build one unless asked |
-| No EU signals | `autoTrack: true` — simpler, uses cookies immediately |
+|-----------|----------------|
+| Existing CMP/cookie banner | Initialize with `autoTrack: false`; call `enableTracking()` from the CMP accept callback and `disableTracking()` on revoke/decline |
+| EU/privacy signals but no CMP | Use `autoTrack: false` and tell the user they need a consent decision; do not build a CMP unless asked |
+| No consent requirement found | Use default `autoTrack: true` |
 
-**Always explain the tradeoff:** `autoTrack: true` starts tracking with cookies immediately. `autoTrack: false` waits until `enableTracking()` is called after user consent.
+Explain the tradeoff: `autoTrack: true` creates browser visitor storage immediately. `autoTrack: false` waits until `enableTracking()` is called.
 
-Fetch the relevant framework doc for consent implementation patterns.
+If identity is known before consent, use the React `user` prop or `setUser()` so identity is queued and applied after tracking starts. Do not call browser `identify()` before tracking is enabled.
 
-### Decision 3: Auth & Identity
+## Decision 2: Identity
 
-| Detection | Recommendation |
-|-----------|---------------|
-| React/Vue with OutlitProvider/OutlitPlugin | Pass `user` prop with `{ email, userId }` after auth resolves. No manual `identify()` needed. |
-| Vanilla JS / script tag | Call `outlit.identify({ email, userId })` client-side right after auth completes |
-| Server-only (Node/Rust) | Call `outlit.identify()` server-side for event attribution |
+Use the strongest identifiers available:
 
-**Critical:** Client-side `identify()` (or the `user` prop) links the anonymous cookie/visitorId to a real person. This must happen after the auth flow completes. Server-side `identify()` is for attributing server events to a known user, but doesn't link browsing history.
+- `email`: primary person identifier.
+- `userId`: the app/auth-provider user or contact ID.
+- `customerId`: the app's account/workspace/customer/team ID.
+- `customerTraits`: account/workspace metadata such as plan or seats.
+- `traits`: user/contact metadata such as name or role.
+- `fingerprint`: stable device/install ID for native or non-browser tracking.
 
-If an auth provider was detected, fetch the framework doc and the [identity resolution](https://docs.outlit.ai/concepts/identity-resolution) doc for the specific auth provider pattern.
+Recommendations:
 
-### Decision 4: Existing Analytics Strategy
+| Context | Pattern |
+|---------|---------|
+| React/Next | Pass `user={{ email, userId, customerId, traits, customerTraits }}` to `OutlitProvider` once auth resolves |
+| Vue/Nuxt | Use `useOutlitUser(refOrComputedUser)` or plugin `setUser()` |
+| SPA without framework helpers | Call `setUser({ email, userId, customerId })` after auth, and `clearUser()` on logout |
+| Script tag | Call `window.outlit.setUser(...)` after auth, or `identify(...)` after tracking is enabled |
+| Server Node | Call `identify({ email, userId, customerId })` for user/profile updates; call `track({ customerId, eventName })` for account-scoped events |
+| Native/device | Track with a persistent `fingerprint`; later call `identify({ email, fingerprint })` or Rust `.fingerprint(...)` to link history |
 
-| Detection | Recommendation |
-|-----------|---------------|
-| Existing analytics abstraction (e.g., `lib/analytics.ts` wrapping PostHog + Amplitude) | Add Outlit as another provider inside the existing abstraction |
-| Scattered direct calls (e.g., `posthog.capture()` in 15 files) | Tell the user: "I found [N] direct [PostHog/Amplitude] calls across [N] files. Want me to create an analytics wrapper that calls both, or add Outlit calls alongside the existing ones?" |
-| No existing analytics | Add Outlit directly, no wrapper needed |
+Critical distinction: browser identify/setUser links anonymous visitor history. Server identify attributes server-side identity and can link fingerprints/customer IDs, but it does not link browser visitor cookies unless the browser also identifies.
 
-The goal is minimal code changes. Don't reorganize their project.
-
-### Decision 5: Activation Event
-
-The activation event marks when a user first gets real value from the product. This is NOT just completing onboarding.
-
-1. Scan the codebase for value-moment patterns:
-   - First resource/project/item created
-   - First core feature used (e.g., first message sent, first report generated)
-   - First invite to a teammate
-   - First successful integration/connection
-2. If a clear value moment is found -> suggest it: "It looks like creating their first [X] could be your activation event — is that where users first get value?"
-3. If only an onboarding flow is found -> mention it as a fallback: "I see an onboarding flow, but activation usually maps to when users get real value, not just completing setup. What action means a user has truly gotten value from your product?"
-4. If nothing obvious -> ask: "What action means a user has gotten real value from your product? That's where `user.activate()` should go."
-
-Fetch the [customer journey](https://docs.outlit.ai/concepts/customer-journey) doc for `user.activate()` implementation.
-
-### Decision 6: Billing Integration
+## Decision 3: Existing Analytics
 
 | Detection | Recommendation |
-|-----------|---------------|
-| Stripe in dependencies | Recommend the Stripe webhook integration — it automatically handles `customer.paid()`, `customer.trialing()`, `customer.churned()` based on Stripe events. Fetch the [customer journey](https://docs.outlit.ai/concepts/customer-journey) doc for webhook setup. |
-| Other billing provider (Paddle, Chargebee) | Guide manual `customer.paid()` / `customer.trialing()` / `customer.churned()` calls in their existing webhook handlers |
-| No billing provider detected | Skip. Mention it's available when they add billing. |
+|-----------|----------------|
+| Existing analytics wrapper | Add Outlit to the wrapper |
+| Direct analytics calls scattered across files | Count them and ask whether to add Outlit alongside existing calls or introduce a wrapper |
+| PostHog connected as data source | Do not duplicate every PostHog event by default; use SDK for missing product/website/customer identity gaps |
+| No analytics | Add Outlit directly |
 
-### Decision 7: Event Tracking
+Keep event names `snake_case` and avoid reorganizing unrelated analytics code.
 
-Pageviews are tracked automatically by default. For custom events:
+## Decision 4: Activation
 
-1. Scan the codebase for existing analytics calls, user action handlers, form submissions, key button clicks
-2. Suggest a list of events based on what the codebase reveals (e.g., `form_submitted`, `feature_used`, `item_created`, `search_performed`)
-3. Ask the user to confirm, modify, or add to the list before implementing
-4. Use `snake_case` for all event names
+Activation means a user reached the product's meaningful value moment. It is not automatically "completed onboarding" unless onboarding itself delivers value.
 
-Fetch the framework doc for the `track()` API pattern.
+1. Scan for first-value actions: first project/resource created, first integration connected, first report/export generated, first invite, first successful core workflow.
+2. Suggest the strongest candidate and ask for confirmation if ambiguous.
+3. Call `user.activate()` only after the action is confirmed complete, usually after the backend succeeds.
+4. Ensure the user is identified first. Browser SDK queues up to 10 activation events until identity is set, but the cleaner integration is to set identity before activation.
+5. Do not call `user.engaged()` or `user.inactive()` in new integrations.
+
+## Decision 5: Billing
+
+Billing is account-level context, separate from contact journey stages.
+
+| Detection | Recommendation |
+|-----------|----------------|
+| Stripe connected in Outlit | Let the Stripe integration handle trialing/paid/churned |
+| Stripe in app but not connected | Recommend connecting Stripe in Outlit; only add manual SDK calls if they need custom logic |
+| Other/custom billing | Add billing calls in existing webhook/job handlers |
+| No billing | Skip |
+
+TypeScript:
+
+```ts
+outlit.customer.paid({
+  customerId: "cust_123",
+  properties: { plan: "pro" },
+})
+```
+
+Rust currently differs:
+
+```rust
+client.customer()
+    .paid("acme.com")
+    .customer_id("cust_123")
+    .send()
+    .await?;
+```
+
+Always flush server/native queues before the handler exits.
+
+## Decision 6: Event Tracking
+
+Browser SDK defaults already capture:
+
+- pageviews, including SPA navigation
+- form submissions with sensitive fields removed
+- auto-identify from email/name form fields
+- engagement time and sessions
+- Cal.com/Calendly booking events, without attendee email/name from client-side embeds
+
+Add custom `track()` calls only for meaningful product actions that are not covered by automatic capture or connected integrations. Use properties for useful context, not PII or secrets.
+
+Calendar embed limitation: Cal.com and Calendly client events do not expose attendee email/name. Use provider webhooks plus server `identify()` when booked-meeting identity matters.
+
+Hash-routed SPAs, `file://` routes, and Electron-style hash paths are handled by the core path extractor; do not add custom path parsing unless the app has a special router.
+
+## Decision 7: Server and Native Tracking
+
+Use server/native tracking for backend-confirmed product activity, billing, background jobs, native apps, CLIs, and device-based activity.
+
+Node example:
+
+```ts
+import { Outlit } from "@outlit/node"
+
+const outlit = new Outlit({ publicKey: process.env.OUTLIT_KEY! })
+
+outlit.track({
+  customerId: "cust_123",
+  eventName: "workspace_synced",
+  properties: { provider: "github" },
+})
+
+await outlit.flush()
+```
+
+Use `fingerprint` for native/desktop/mobile activity before login:
+
+```ts
+outlit.track({
+  fingerprint: deviceId,
+  eventName: "app_opened",
+})
+
+outlit.identify({
+  email: user.email,
+  fingerprint: deviceId,
+})
+```
+
+Serverless rule: `await outlit.flush()` before returning. Long-lived process rule: reuse one client and call `shutdown()` on graceful shutdown.
 
 ## Doc URL Map
 
-Fetch these docs as needed for implementation details. Always prefer linking to docs over hardcoding patterns.
+Fetch docs as needed. Prefer docs over hardcoding long framework patterns, but apply the API guardrails above if examples conflict.
 
 | Topic | URL |
 |-------|-----|
 | Quickstart | `https://docs.outlit.ai/tracking/quickstart` |
 | How tracking works | `https://docs.outlit.ai/tracking/how-it-works` |
-| NPM package | `https://docs.outlit.ai/tracking/browser/npm` |
+| Customer context graph | `https://docs.outlit.ai/concepts/customer-context-graph` |
+| Website visitors | `https://docs.outlit.ai/concepts/website-visitors` |
+| Identity resolution | `https://docs.outlit.ai/concepts/identity-resolution` |
+| Customer journey | `https://docs.outlit.ai/concepts/customer-journey` |
+| NPM/browser package | `https://docs.outlit.ai/tracking/browser/npm` |
 | React | `https://docs.outlit.ai/tracking/browser/react` |
 | Next.js | `https://docs.outlit.ai/tracking/browser/nextjs` |
 | Vue 3 | `https://docs.outlit.ai/tracking/browser/vue` |
@@ -201,55 +287,62 @@ Fetch these docs as needed for implementation details. Always prefer linking to 
 | Calendar embeds | `https://docs.outlit.ai/tracking/browser/calendar-embeds` |
 | Node.js | `https://docs.outlit.ai/tracking/server/nodejs` |
 | Rust / Tauri | `https://docs.outlit.ai/tracking/server/rust` |
-| Identity resolution | `https://docs.outlit.ai/concepts/identity-resolution` |
-| Anonymous tracking | `https://docs.outlit.ai/concepts/anonymous-tracking` |
-| Customer journey | `https://docs.outlit.ai/concepts/customer-journey` |
-| MCP integration | `https://docs.outlit.ai/ai-integrations/mcp` |
 | Ingest API | `https://docs.outlit.ai/api-reference/ingest` |
-| API introduction | `https://docs.outlit.ai/api-reference/introduction` |
 | Full docs index | `https://docs.outlit.ai/llms.txt` |
 
 ## Troubleshooting
 
-### No events in dashboard
+### No browser events
 
-1. Verify the public key env var has the correct framework prefix (`NEXT_PUBLIC_`, `VITE_`, `REACT_APP_`, etc.)
-2. Confirm the provider/init wraps the entire app or runs at startup
-3. Check `autoTrack` setting — if `false`, `enableTracking()` must be called after consent
-4. Check DevTools -> Network for requests to `app.outlit.ai/api/i/v1/...` — look for 200 responses
-5. If requests are missing entirely, the SDK isn't initializing — check for errors in the console
+1. Confirm the public env var prefix is correct and exposed to the client bundle.
+2. Confirm provider/init runs once at app startup and wraps the app.
+3. If `autoTrack: false`, call `enableTracking()` after consent.
+4. Check Network for `/api/i/v1/<publicKey>/events`.
+5. Check console warnings such as tracking not enabled, already initialized, or multiple instances.
 
 ### Events not linked to users
 
-- `identify()` or the `user` prop must be called/set after the auth flow resolves
-- Include both `email` and `userId` for reliable identity resolution
-- Client-side identify links browsing history; server-side identify attributes server events
+- Prefer `OutlitProvider user`, `useOutlitUser`, or `setUser()` for auth state.
+- Send both `email` and `userId` when available.
+- Include `customerId` for account/workspace-scoped products.
+- Browser identity links visitor history; server identity does not replace browser identity.
+- For native/device history, reuse the same persistent `fingerprint` before and after login.
 
-### Server-side events missing
+### Server events missing
 
-- Always `await outlit.flush()` before the function returns, especially in serverless environments
-- Verify `OUTLIT_KEY` env var is set in the server environment
+- Use `publicKey`, not `privateKey`.
+- Use `eventName`, not `event`.
+- Provide at least one of `email`, `userId`, `fingerprint`, or `customerId` to `track()`.
+- `identify()` needs `email` or `userId`.
+- Always `await outlit.flush()` before serverless handlers return.
+- Non-retryable ingest errors stop automatic retries until restart; fix credentials/config instead of waiting.
 
-### Race condition with async auth
+### Activation missing or delayed
 
-Auth providers like Clerk and Auth0 load asynchronously. If `user.activate()` or `identify()` is called before the auth provider resolves, events get silently dropped. Ensure auth state is fully loaded before calling identity or stage methods.
+- Call activation after identity is set.
+- In browsers, `user.activate()` can queue until `setUser()`/`identify()` provides identity, but the queue is bounded.
+- Do not use deprecated `engaged`/`inactive` calls; send product activity with `track()`.
 
 ## Key Principles
 
-- **Minimal changes** — touch as few files as possible, add alongside existing code
-- **Detect first, ask second** — auto-resolve what you can, only prompt for genuine decisions
-- **Recommendations have reasoning** — when presenting a choice, lead with the recommendation and explain why
-- **Client-side identify is critical** — this links anonymous browsing to a real user
-- **Flush in serverless** — always `await outlit.flush()` before function exits
-- **snake_case events** — `subscription_created` not `SubscriptionCreated`
-- **Both IDs** — always provide both `email` and `userId` for identity resolution
+- Minimal changes: instrument the existing app shape.
+- Detect first, ask second.
+- Use `customerId` for account/workspace context.
+- Use `setUser`/provider user for auth lifecycle.
+- Use `track()` for product activity; use `user.activate()` only for the activation milestone.
+- Flush server/native queues before exit.
+- Keep events `snake_case`.
 
 ## Installation
 
-To add this skill to your Claude Code environment:
+Install this skill through the Outlit CLI when possible:
 
 ```sh
-npx add-skill outlitai/outlit-agent-skills
-# or
-bunx add-skill outlitai/outlit-agent-skills
+outlit setup skills
+```
+
+Or with the Skills CLI:
+
+```sh
+npx -y skills add https://github.com/OutlitAI/outlit-agent-skills --skill outlit-sdk -g
 ```
