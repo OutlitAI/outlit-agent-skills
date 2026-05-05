@@ -2,6 +2,6 @@
 
 Available skills in this repository:
 
-- **[skills/outlit/SKILL.md](skills/outlit/SKILL.md)** — Customer intelligence access through the Outlit CLI or MCP tools. Use when querying customers, timelines, facts, search, revenue, churn, or SQL analytics.
+- **[skills/outlit/SKILL.md](skills/outlit/SKILL.md)** — Customer intelligence access through the Outlit CLI, MCP/Pi tools, SQL, source evidence, and notifications. Use when querying customers, users, timelines, facts, search, revenue, churn, integrations, or SQL analytics.
 
-- **[skills/outlit-sdk/SKILL.md](skills/outlit-sdk/SKILL.md)** — Complete Outlit SDK integration guide covering React, Next.js, Vue, Svelte, Angular, Astro, Node.js, Express, and Fastify. Use when integrating Outlit tracking into applications.
+- **[skills/outlit-sdk/SKILL.md](skills/outlit-sdk/SKILL.md)** — Complete Outlit SDK integration guide covering browser, server, native, desktop, identity, consent, activation, billing, and event tracking. Use when integrating Outlit tracking into applications.
