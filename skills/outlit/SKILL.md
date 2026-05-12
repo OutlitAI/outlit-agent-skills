@@ -31,7 +31,7 @@ Use the highest-level interface already available:
 3. Else guide setup:
    - Coding agents: install/use the `outlit` CLI and run `outlit auth login`.
    - Agent skills: run `outlit setup --yes` or `outlit setup skills`.
-   - MCP clients: use the workspace MCP URL from **Settings > CLI & MCP**. Remote MCP uses OAuth; do not hardcode shared endpoints, bearer headers, or API keys into MCP config unless the docs/client explicitly require it.
+   - MCP clients: use the workspace MCP URL from **Settings > CLI & MCP** directly. Do not route through a legacy bridge layer. Remote MCP uses OAuth; do not hardcode shared endpoints, bearer headers, or API keys into MCP config unless the docs/client explicitly require it.
 
 Use the `outlit-sdk` skill instead when the user wants to instrument an application with tracking SDKs.
 
