@@ -29,8 +29,8 @@ Use the highest-level interface already available:
 1. If `outlit_*` MCP/Pi tools are present, use those tools.
 2. Else if the `outlit` CLI is installed, use the CLI.
 3. Else guide setup:
-   - Coding agents: install/use the `outlit` CLI and run `outlit auth login`.
-   - Agent skills: run `outlit setup --yes` or `outlit setup skills`.
+   - Coding agents: install/use the `outlit` CLI, then run `outlit onboard --agent <agent> --json` as the first command. It starts browser auth when no API key is present.
+   - Agent skills only: run `outlit setup --yes` or `outlit setup skills`.
    - MCP clients: use the workspace MCP URL from **Settings > CLI & MCP**. Remote MCP uses OAuth; do not hardcode shared endpoints, bearer headers, or API keys into MCP config unless the docs/client explicitly require it.
 
 Use the `outlit-sdk` skill instead when the user wants to instrument an application with tracking SDKs.
@@ -50,7 +50,7 @@ Use the `outlit-sdk` skill instead when the user wants to instrument an applicat
 | Thematic/fuzzy question | `outlit_search_customer_context` | `outlit search` |
 | Custom analytics | `outlit_schema` + `outlit_query` | `outlit schema` + `outlit sql` |
 | Send/post a notification | `outlit_send_notification` | `outlit notify` |
-| Integration status/setup | Use CLI unless explicit tools exist | `outlit integrations list/status/add/remove` |
+| Integration status/setup | Use CLI unless explicit tools exist | `outlit integrations capabilities/setup/status` |
 
 Use customer lookups before SQL. SQL is for aggregates, cohorts, joins, time-series checks, and custom reporting.
 
@@ -120,13 +120,27 @@ brew install outlitai/tap/outlit
 Auth resolution order is `--api-key`, `OUTLIT_API_KEY`, then stored credentials.
 
 ```bash
+outlit auth login --browser --json
 outlit auth login
 outlit auth login --key ok_your_api_key
 outlit auth status
 outlit auth whoami
 ```
 
-Agent setup:
+Agent onboarding:
+
+```bash
+outlit onboard --agent codex --json
+outlit onboard --agent claude-code --json
+outlit onboard --agent gemini --json
+outlit onboard --agent droid --json
+outlit onboard --agent opencode --json
+outlit onboard --agent pi --json
+outlit onboard --agent openclaw --json
+outlit doctor --json
+```
+
+`outlit onboard` is the first command for coding agents. It resolves an existing API key, starts browser auth when no key is available outside CI, validates the key, installs the Outlit skill for the named agent, checks integration setup readiness, and returns next actions. It does not connect integrations or ask for third-party credentials by itself; use `outlit integrations setup <provider>` for that. If `onboard` is missing, run `outlit upgrade` and fall back to the older agent setup commands:
 
 ```bash
 outlit setup --yes
@@ -138,7 +152,6 @@ outlit setup opencode
 outlit setup pi
 outlit setup openclaw
 outlit setup skills
-outlit doctor
 ```
 
 `outlit setup skills` opens the interactive Skills installer for `outlit` and optional extras like `outlit-sdk`.
@@ -180,19 +193,42 @@ For custom TypeScript tool clients, use `@outlit/tools` and its exported `custom
 Use integration commands only when the user asks to inspect or manage connected data sources.
 
 ```bash
-outlit integrations list
-outlit integrations status
-outlit integrations add
-outlit integrations remove
+outlit integrations capabilities --json
+outlit integrations capabilities hubspot --json
+outlit integrations setup hubspot --json
+outlit integrations setup pylon --config '{"apiToken":"..."}' --json
+outlit integrations status --session <sessionId> --json
+outlit integrations status hubspot --json
+outlit integrations list --json
 ```
+
+Use `capabilities` before setup. It tells you the provider `setupMode`, credential type, whether CLI setup is supported, required credential fields, and follow-up steps such as CRM pipeline/stage mapping or webhooks. Provider-specific setup belongs after the provider name, for example `outlit integrations setup hubspot` and later provider subflows like `outlit integrations setup hubspot mappings` or `outlit integrations setup pylon webhooks`.
+
+For browser/Nango providers, `setup` returns a `connectUrl` and `sessionId`; surface the URL/code to the user when browser approval is required, then poll with `outlit integrations status --session <sessionId> --json`.
+
+For direct credential providers, pass JSON config and do not expect a session ID:
+
+```bash
+outlit integrations setup stripe --config '{"apiKey":"rk_..."}' --json
+outlit integrations setup pylon --config '{"apiToken":"..."}' --json
+outlit integrations setup granola --config '{"apiKey":"..."}' --json
+outlit integrations setup posthog --config '{"apiKey":"...","region":"us","projectId":"..."}' --json
+```
+
+CRM providers can require pipeline/stage mappings after authentication. Run `outlit integrations setup hubspot mappings --json` or `outlit integrations setup attio mappings --json` without config first to fetch available pipelines, then rerun with `--config '{"mappings":[...]}'` to save mappings and start CRM syncs.
+
+Pylon, Stripe, Fireflies, and PostHog can require webhook setup after credentials are connected. Run `outlit integrations setup <provider> webhooks --json` to get manual provider setup details such as webhook URL, required headers/secrets, required events, docs links, and current status. Stripe can also accept `--config '{"webhookSecret":"whsec_..."}'`; Fireflies can accept `--config '{"webhookSecret":"..."}'`. These follow-up commands do not use `--session`.
+
+If capabilities mark a follow-up as unsupported by the CLI, use the Outlit platform settings or ask the user before proceeding.
 
 Be careful with `remove`: it can disconnect an integration and remove synced data. Confirm intent before using destructive integration-management commands.
 
 ## Troubleshooting
 
-- Missing API key: tell the user to set `OUTLIT_API_KEY` or run `outlit auth login`.
-- Setup issues: run `outlit doctor`.
+- Missing API key: run `outlit onboard --agent <agent> --json` for coding agents, or tell the user to set `OUTLIT_API_KEY` / run `outlit auth login --browser --json` for non-agent setup.
+- Setup issues: run `outlit doctor --json`.
 - Stale CLI: run `outlit upgrade`; set `OUTLIT_NO_UPDATE_NOTIFIER=1` to suppress update notices.
+- Missing `onboard` or `integrations capabilities`: upgrade the CLI before continuing.
 - MCP auth issues: use the workspace MCP URL and OAuth flow; do not assume API-key-only auth for remote MCP.
 - Empty data: check integrations and sync status before concluding the customer has no activity.
 
