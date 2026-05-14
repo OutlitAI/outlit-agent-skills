@@ -190,7 +190,7 @@ For custom TypeScript tool clients, use `@outlit/tools` and its exported `custom
 
 ## Integrations
 
-Use integration commands only when the user asks to inspect or manage connected data sources.
+Use integration commands only when the user asks to inspect or set up connected data sources. Disconnect integrations through the Outlit web app; the CLI does not expose destructive integration removal.
 
 ```bash
 outlit integrations capabilities --json
@@ -220,8 +220,6 @@ CRM providers can require pipeline/stage mappings after authentication. Run `out
 Pylon, Stripe, Fireflies, and PostHog can require webhook setup after credentials are connected. Run `outlit integrations setup <provider> webhooks --json` to get manual provider setup details such as webhook URL, required headers/secrets, required events, docs links, and current status. Stripe can also accept `--config '{"webhookSecret":"whsec_..."}'`; Fireflies can accept `--config '{"webhookSecret":"..."}'`. These follow-up commands do not use `--session`.
 
 If capabilities mark a follow-up as unsupported by the CLI, use the Outlit platform settings or ask the user before proceeding.
-
-Be careful with `remove`: it can disconnect an integration and remove synced data. Confirm intent before using destructive integration-management commands.
 
 ## Troubleshooting
 
