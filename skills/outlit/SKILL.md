@@ -196,6 +196,7 @@ Use integration commands only when the user asks to inspect or set up connected 
 outlit integrations capabilities --json
 outlit integrations capabilities hubspot --json
 outlit integrations setup hubspot --json
+outlit integrations setup salesforce --json
 outlit integrations setup pylon --config '{"apiToken":"..."}' --json
 outlit integrations status --session <sessionId> --json
 outlit integrations status hubspot --json
@@ -215,7 +216,7 @@ outlit integrations setup granola --config '{"apiKey":"..."}' --json
 outlit integrations setup posthog --config '{"apiKey":"...","region":"us","projectId":"..."}' --json
 ```
 
-CRM providers can require pipeline/stage mappings after authentication. Run `outlit integrations setup hubspot mappings --json` or `outlit integrations setup attio mappings --json` without config first to fetch available pipelines, then rerun with `--config '{"mappings":[...]}'` to save mappings and start CRM syncs.
+CRM providers can require pipeline/stage mappings after authentication. Run `outlit integrations setup hubspot mappings --json`, `outlit integrations setup salesforce mappings --json`, or `outlit integrations setup attio mappings --json` without config first to fetch available pipelines, then rerun with `--config '{"mappings":[...]}'` to save mappings and start CRM syncs.
 
 Pylon, Stripe, Fireflies, and PostHog can require webhook setup after credentials are connected. Run `outlit integrations setup <provider> webhooks --json` to get manual provider setup details such as webhook URL, required headers/secrets, required events, docs links, and current status. Stripe can also accept `--config '{"webhookSecret":"whsec_..."}'`; Fireflies can accept `--config '{"webhookSecret":"..."}'`. These follow-up commands do not use `--session`.
 

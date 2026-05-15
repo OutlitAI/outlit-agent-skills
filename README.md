@@ -18,7 +18,7 @@ outlit onboard --agent codex --json
 
 `outlit onboard` can be the first command: it starts browser auth when no API key is available, installs the Outlit skill for the selected agent, checks integration readiness, and prints next actions.
 
-After onboarding, agents should inspect integration capabilities before setup. Follow-up commands stay after the provider name, such as `outlit integrations setup hubspot mappings --json` for CRM mappings and `outlit integrations setup pylon webhooks --json` for webhook setup details. `--session` is only for browser/Nango setup polling.
+After onboarding, agents should inspect integration capabilities before setup. Follow-up commands stay after the provider name, such as `outlit integrations setup hubspot mappings --json`, `outlit integrations setup salesforce mappings --json`, or `outlit integrations setup pylon webhooks --json`. `--session` is only for browser/Nango setup polling.
 
 Or directly with the Skills CLI:
 
