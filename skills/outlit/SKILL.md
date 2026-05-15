@@ -205,7 +205,7 @@ outlit integrations list --json
 
 Use `capabilities` before setup. It tells you the provider `setupMode`, credential type, whether CLI setup is supported, required credential fields, and follow-up steps such as CRM pipeline/stage mapping or webhooks. Provider-specific setup belongs after the provider name, for example `outlit integrations setup hubspot` and later provider subflows like `outlit integrations setup hubspot mappings` or `outlit integrations setup pylon webhooks`.
 
-For browser/Nango providers, `setup` returns a `connectUrl` and `sessionId`; surface the URL/code to the user when browser approval is required, then poll with `outlit integrations status --session <sessionId> --json`.
+For browser-based providers, `setup` returns a `connectUrl` and `sessionId`; surface the URL/code to the user when browser approval is required, then poll with `outlit integrations status --session <sessionId> --json`.
 
 For direct credential providers, pass JSON config and do not expect a session ID:
 
