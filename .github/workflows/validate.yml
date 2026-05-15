@@ -14,31 +14,32 @@ jobs:
 
       - name: Validate SKILL.md frontmatter
         run: |
-          SKILL_FILE="skills/outlit-sdk/SKILL.md"
-          if [ ! -f "$SKILL_FILE" ]; then
-            echo "ERROR: $SKILL_FILE not found"
-            exit 1
-          fi
+          for SKILL_FILE in skills/*/SKILL.md; do
+            if [ ! -f "$SKILL_FILE" ]; then
+              echo "ERROR: No skill files found"
+              exit 1
+            fi
 
-          # Check YAML frontmatter exists
-          if ! head -1 "$SKILL_FILE" | grep -q "^---$"; then
-            echo "ERROR: Missing opening frontmatter delimiter"
-            exit 1
-          fi
+            # Check YAML frontmatter exists
+            if ! head -1 "$SKILL_FILE" | grep -q "^---$"; then
+              echo "ERROR: Missing opening frontmatter delimiter in $SKILL_FILE"
+              exit 1
+            fi
 
-          # Check name field
-          if ! grep -q "^name:" "$SKILL_FILE"; then
-            echo "ERROR: Missing 'name' in frontmatter"
-            exit 1
-          fi
+            # Check name field
+            if ! grep -q "^name:" "$SKILL_FILE"; then
+              echo "ERROR: Missing 'name' in frontmatter for $SKILL_FILE"
+              exit 1
+            fi
 
-          # Check description field
-          if ! grep -q "^description:" "$SKILL_FILE"; then
-            echo "ERROR: Missing 'description' in frontmatter"
-            exit 1
-          fi
+            # Check description field
+            if ! grep -q "^description:" "$SKILL_FILE"; then
+              echo "ERROR: Missing 'description' in frontmatter for $SKILL_FILE"
+              exit 1
+            fi
 
-          echo "OK: SKILL.md frontmatter valid"
+            echo "OK: $SKILL_FILE frontmatter valid"
+          done
 
       - name: Check skill is self-contained
         run: |
