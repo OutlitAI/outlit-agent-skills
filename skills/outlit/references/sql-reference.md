@@ -6,10 +6,12 @@ Always inspect schema first with `outlit_schema` or `outlit schema`.
 
 ## Tables
 
-- `events`: product and communication activity
-- `customer_dimensions`: customer attributes, billing, revenue
-- `user_dimensions`: user attributes and journey stages
-- `mrr_snapshots`: daily MRR snapshots
+Use the public analytics views exposed by `outlit schema`, not backend table names:
+
+- `activity`: product, communication, support, CRM, and other customer activity
+- `customers`: customer/account attributes, billing status, and revenue fields
+- `users`: user/contact attributes and journey-stage fields
+- `revenue`: revenue and MRR reporting fields
 
 ## ClickHouse patterns
 
