@@ -12,48 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate SKILL.md frontmatter
-        run: |
-          for SKILL_FILE in skills/*/SKILL.md; do
-            if [ ! -f "$SKILL_FILE" ]; then
-              echo "ERROR: No skill files found"
-              exit 1
-            fi
-
-            # Check YAML frontmatter exists
-            if ! head -1 "$SKILL_FILE" | grep -q "^---$"; then
-              echo "ERROR: Missing opening frontmatter delimiter in $SKILL_FILE"
-              exit 1
-            fi
-
-            # Check name field
-            if ! grep -q "^name:" "$SKILL_FILE"; then
-              echo "ERROR: Missing 'name' in frontmatter for $SKILL_FILE"
-              exit 1
-            fi
-
-            # Check description field
-            if ! grep -q "^description:" "$SKILL_FILE"; then
-              echo "ERROR: Missing 'description' in frontmatter for $SKILL_FILE"
-              exit 1
-            fi
-
-            echo "OK: $SKILL_FILE frontmatter valid"
-          done
-
-      - name: Check skill is self-contained
-        run: |
-          SKILL_DIR="skills/outlit-sdk"
-
-          # Skill should be a single SKILL.md with no other files
-          FILE_COUNT=$(find "$SKILL_DIR" -type f | wc -l)
-          if [ "$FILE_COUNT" -ne 1 ]; then
-            echo "ERROR: Expected 1 file in $SKILL_DIR, found $FILE_COUNT"
-            find "$SKILL_DIR" -type f
-            exit 1
-          fi
-
-          echo "OK: Skill is self-contained (SKILL.md only)"
+      - name: Validate skills
+        run: bash scripts/validate-skills.sh
 
       - name: Check root entry points
         run: |

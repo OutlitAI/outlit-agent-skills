@@ -1,6 +1,6 @@
 ---
 name: outlit
-description: Use when accessing Outlit customer intelligence through the `outlit` CLI, Outlit MCP tools, Pi tools, or @outlit/tools, including customer lookups, users, timelines, facts, source evidence, semantic search, revenue, churn, SQL analytics, setup, notifications, or troubleshooting agent access.
+description: Use when accessing Outlit customer intelligence through the `outlit` CLI, Outlit MCP tools, Pi tools, or @outlit/tools, including customer lookups, users, account owners, timelines, facts, source evidence, semantic search, revenue, churn, SQL analytics, setup, notifications, or troubleshooting agent access.
 metadata:
   homepage: "https://outlit.ai"
   emoji: "🔦"
@@ -41,6 +41,7 @@ Use the `outlit-sdk` skill instead when the user wants to instrument an applicat
 |------|-------------|-----|
 | Browse customers | `outlit_list_customers` | `outlit customers list` |
 | Browse users/contacts | `outlit_list_users` | `outlit users list` |
+| Browse internal workspace users/account owners, when available | `outlit_list_workspace_users` | `outlit ws-users list` |
 | Single account profile | `outlit_get_customer` | `outlit customers get` |
 | Chronology | `outlit_get_timeline` | `outlit customers timeline` |
 | Known structured signals | `outlit_list_facts` | `outlit facts list` |
@@ -84,7 +85,8 @@ Notification tools are action tools. Use them only when the user explicitly asks
 - CLI: `outlit notify --title "..." --markdown "..."`.
 - File input: `--payload-file <path>`, `--markdown-file <path>`.
 - Optional context: `--message`, `--severity low|medium|high`, `--source`, `--subject`.
-- Destination format: `--destination slack[:channelId]`. Omit destination to use the organization's default notifier, usually Slack.
+- Destination format: `--destination-id <notificationDestinationUuid>[,<notificationDestinationUuid>]`. Omit destination IDs to use the organization's default notifier, usually Slack.
+- Tool input format: use `destinationIds: ["<notificationDestinationUuid>"]` for explicit destinations.
 - Markdown is the preferred human-readable body; payload can carry JSON-serializable context.
 
 Do not notify by default just because an analysis found risk.
@@ -184,9 +186,9 @@ export OUTLIT_API_KEY=ok_your_api_key
 pi
 ```
 
-`@outlit/pi` registers default customer intelligence tools and notification action tools. SQL tools are available but not enabled by default; use analytical/custom toolsets only for agents that should run read-only SQL.
+`@outlit/pi` registers Outlit customer-intelligence tools for Pi. Use `analyticalAgentToolNames` or custom toolsets only for agents that should run read-only analytics or broader source-listing tools.
 
-For custom TypeScript tool clients, use `@outlit/tools` and its exported `customerToolContracts`, `defaultAgentToolNames`, `actionToolNames`, `sqlToolNames`, and `allCustomerToolNames`.
+For custom TypeScript tool clients, use `@outlit/tools` and its published `customerToolContracts` and tool-name exports instead of hardcoding schemas.
 
 ## Integrations
 
