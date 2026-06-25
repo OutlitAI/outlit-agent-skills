@@ -1,10 +1,10 @@
 ---
 name: outlit
-description: Use when accessing Outlit customer intelligence through the `outlit` CLI, Outlit MCP tools, Pi tools, or @outlit/tools, including customer lookups, users, account owners, timelines, facts, source evidence, semantic search, revenue, churn, SQL analytics, setup, notifications, or troubleshooting agent access.
+description: Use when accessing Outlit customer intelligence through the `outlit` CLI, Outlit MCP tools, Pi tools, or @outlit/tools, including customer lookups, users, workspace users, timelines, facts, source evidence, semantic search, revenue, churn, SQL analytics, setup, notifications, integrations, or troubleshooting agent access.
 metadata:
-  homepage: "https://outlit.ai"
-  emoji: "🔦"
   openclaw:
+    homepage: "https://outlit.ai"
+    emoji: "🔦"
     requires:
       bins: [outlit]
       env: [OUTLIT_API_KEY]
@@ -26,12 +26,12 @@ Use Outlit to ground customer intelligence work in real customer data. Outlit jo
 
 Use the highest-level interface already available:
 
-1. If `outlit_*` MCP/Pi tools are present, use those tools.
+1. If `outlit_*` MCP or Pi tools are present, use those tools.
 2. Else if the `outlit` CLI is installed, use the CLI.
 3. Else guide setup:
-   - Coding agents: install/use the `outlit` CLI, then run `outlit onboard --agent <agent> --json` as the first command. It starts browser auth when no API key is present.
+   - Coding agents: install/use the `outlit` CLI, then run `outlit onboard --agent <agent> --json` first. It starts browser auth when no API key is present outside CI, installs the Outlit skill, checks integration readiness, and prints next actions.
    - Agent skills only: run `outlit setup --yes` or `outlit setup skills`.
-   - MCP clients: use the workspace MCP URL from **Settings > CLI & MCP**. Remote MCP uses OAuth; do not hardcode shared endpoints, bearer headers, or API keys into MCP config unless the docs/client explicitly require it.
+   - MCP clients: use the workspace MCP URL from **Settings > CLI & MCP**. Remote MCP uses OAuth in the client; do not hardcode shared endpoints, bearer headers, or API keys into remote MCP config.
 
 Use the `outlit-sdk` skill instead when the user wants to instrument an application with tracking SDKs.
 
@@ -41,12 +41,12 @@ Use the `outlit-sdk` skill instead when the user wants to instrument an applicat
 |------|-------------|-----|
 | Browse customers | `outlit_list_customers` | `outlit customers list` |
 | Browse users/contacts | `outlit_list_users` | `outlit users list` |
-| Browse internal workspace users/account owners, when available | `outlit_list_workspace_users` | `outlit ws-users list` |
+| Browse workspace users | `outlit_list_workspace_users` | `outlit ws-users list` |
 | Single account profile | `outlit_get_customer` | `outlit customers get` |
 | Chronology | `outlit_get_timeline` | `outlit customers timeline` |
 | Known structured signals | `outlit_list_facts` | `outlit facts list` |
 | Exact fact | `outlit_get_fact` | `outlit facts get` |
-| Deterministic source enumeration, when available | `outlit_list_sources` | `outlit sources list` |
+| Deterministic source enumeration | `outlit_list_sources` | `outlit sources list` |
 | Exact source artifact | `outlit_get_source` | `outlit sources get` |
 | Thematic/fuzzy question | `outlit_search_customer_context` | `outlit search` |
 | Custom analytics | `outlit_schema` + `outlit_query` | `outlit schema` + `outlit sql` |
@@ -60,7 +60,7 @@ Use customer lookups before SQL. SQL is for aggregates, cohorts, joins, time-ser
 - Start with the highest-level tool that can answer the question.
 - Gather evidence before drawing conclusions.
 - Separate evidence from interpretation in the final answer.
-- Cite the evidence kind: customer record, user record, timeline event, fact, search result, source record, or SQL result.
+- Cite the evidence kind: customer record, user record, workspace-user record, timeline event, fact, search result, source record, or SQL result.
 - If data is sparse, stale, or inconsistent, say how that affects confidence.
 - Request only the fields or include sections needed.
 - Results often include timestamps and source attribution; use them.
@@ -85,8 +85,7 @@ Notification tools are action tools. Use them only when the user explicitly asks
 - CLI: `outlit notify --title "..." --markdown "..."`.
 - File input: `--payload-file <path>`, `--markdown-file <path>`.
 - Optional context: `--message`, `--severity low|medium|high`, `--source`, `--subject`.
-- Destination format: `--destination-id <notificationDestinationUuid>[,<notificationDestinationUuid>]`. Omit destination IDs to use the organization's default notifier, usually Slack.
-- Tool input format: use `destinationIds: ["<notificationDestinationUuid>"]` for explicit destinations.
+- Destination IDs: `--destination-id <uuid>` or comma-separated UUIDs. Omit destination IDs to use the organization's default notifier.
 - Markdown is the preferred human-readable body; payload can carry JSON-serializable context.
 
 Do not notify by default just because an analysis found risk.
@@ -186,9 +185,9 @@ export OUTLIT_API_KEY=ok_your_api_key
 pi
 ```
 
-`@outlit/pi` registers Outlit customer-intelligence tools for Pi. Use `analyticalAgentToolNames` or custom toolsets only for agents that should run read-only analytics or broader source-listing tools.
+`@outlit/pi` registers default customer intelligence tools and notification action tools. SQL tools are available but not enabled by default; use analytical/custom toolsets only for agents that should run read-only SQL.
 
-For custom TypeScript tool clients, use `@outlit/tools` and its published `customerToolContracts` and tool-name exports instead of hardcoding schemas.
+For custom TypeScript tool clients, use `@outlit/tools` and its exported `customerToolContracts`, `defaultAgentToolNames`, `actionToolNames`, `sqlToolNames`, `analyticalAgentToolNames`, and `allCustomerToolNames`.
 
 ## Integrations
 
@@ -199,6 +198,7 @@ outlit integrations capabilities --json
 outlit integrations capabilities hubspot --json
 outlit integrations setup hubspot --json
 outlit integrations setup salesforce --json
+outlit integrations setup granola --config '{"apiKey":"..."}' --json
 outlit integrations setup pylon --config '{"apiToken":"..."}' --json
 outlit integrations status --session <sessionId> --json
 outlit integrations status hubspot --json
@@ -214,13 +214,16 @@ For direct credential providers, pass JSON config and do not expect a session ID
 ```bash
 outlit integrations setup stripe --config '{"apiKey":"rk_..."}' --json
 outlit integrations setup pylon --config '{"apiToken":"..."}' --json
+outlit integrations setup fireflies --config '{"apiKey":"..."}' --json
 outlit integrations setup granola --config '{"apiKey":"..."}' --json
 outlit integrations setup posthog --config '{"apiKey":"...","region":"us","projectId":"..."}' --json
+outlit integrations setup supabase --config '{"projectUrl":"https://...","serviceRoleKey":"..."}' --json
+outlit integrations setup clerk --config '{"secretKey":"sk_..."}' --json
 ```
 
-CRM providers can require pipeline/stage mappings after authentication. Run `outlit integrations setup hubspot mappings --json`, `outlit integrations setup salesforce mappings --json`, or `outlit integrations setup attio mappings --json` without config first to fetch available pipelines, then rerun with `--config '{"mappings":[...]}'` to save mappings and start CRM syncs.
+CRM providers can require pipeline/stage mappings after authentication. Run the follow-up command returned by `capabilities` or setup, such as `outlit integrations setup hubspot mappings --json`, without config first to fetch available pipelines, then rerun with `--config '{"mappings":[...]}'` to save mappings and start CRM syncs.
 
-Pylon, Stripe, Fireflies, and PostHog can require webhook setup after credentials are connected. Run `outlit integrations setup <provider> webhooks --json` to get manual provider setup details such as webhook URL, required headers/secrets, required events, docs links, and current status. Stripe can also accept `--config '{"webhookSecret":"whsec_..."}'`; Fireflies can accept `--config '{"webhookSecret":"..."}'`. These follow-up commands do not use `--session`.
+Pylon, Stripe, PostHog, Gong, and other providers can require webhook setup after credentials are connected. Run the follow-up command returned by `capabilities` or setup, such as `outlit integrations setup pylon webhooks --json`, to get manual provider setup details such as webhook URL, required headers/secrets, required events, docs links, and current status. Stripe can also accept `--config '{"webhookSecret":"whsec_..."}'`. These follow-up commands do not use `--session`.
 
 If capabilities mark a follow-up as unsupported by the CLI, use the Outlit platform settings or ask the user before proceeding.
 

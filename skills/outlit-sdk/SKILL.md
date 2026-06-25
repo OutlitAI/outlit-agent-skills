@@ -34,13 +34,14 @@ These points prevent the most common stale integrations:
 
 - All current ingest SDKs use `publicKey` values that start with `pk_`. Do not use `privateKey`, `OUTLIT_PRIVATE_KEY`, `visitorId`, or `event` for `@outlit/node` examples.
 - Node server events use `new Outlit({ publicKey })` and `track({ eventName, email | userId | fingerprint | customerId, properties })`.
-- Browser anonymous events are valid without identity. Server `track()` requires at least one of `email`, `userId`, `fingerprint`, or `customerId`.
+- Browser events use `track(eventName, properties?)`; browser anonymous events are valid without identity because the SDK manages `visitorId`.
+- Server `track()` requires at least one of `email`, `userId`, `fingerprint`, or `customerId`.
 - Server `identify()` requires `email` or `userId`. `customerId` is optional account/workspace attribution, not a user identity by itself.
 - Use `customerId` for your system-owned account/workspace/customer ID. The TypeScript SDK no longer uses `customerDomain`; do not add it.
 - Browser `setUser()` can be called before tracking is enabled and will be applied after consent. Browser `identify()` requires tracking to already be enabled.
 - `user.activate()` is the only journey stage new integrations should send manually. `user.engaged()` and `user.inactive()` are deprecated; Outlit derives engagement and inactivity from tracked product activity.
-- Billing is account-level. In TypeScript billing methods, prefer `customerId`; `stripeCustomerId` is compatibility-only. In Rust billing methods still start with a domain and can add `.customer_id(...)`.
-- Event names should be `snake_case`. SDK events get UUIDv7 event IDs automatically; do not generate event IDs manually.
+- Billing is account-level. In TypeScript billing methods, prefer `customerId`; `stripeCustomerId` is still accepted for Stripe-backed billing identifiers. In Rust billing methods still start with a domain and can add `.customer_id(...)`.
+- Event names should be `snake_case`.
 
 ## Phase 1: Quick Connect
 
@@ -176,7 +177,7 @@ Activation means a user reached the product's meaningful value moment. It is not
 1. Scan for first-value actions: first project/resource created, first integration connected, first report/export generated, first invite, first successful core workflow.
 2. Suggest the strongest candidate and ask for confirmation if ambiguous.
 3. Call `user.activate()` only after the action is confirmed complete, usually after the backend succeeds.
-4. Ensure the user is identified first. Browser SDK queues up to 10 activation events until identity is set, but the cleaner integration is to set identity before activation.
+4. Ensure the user is identified first. Browser `user.activate()` can queue until identity is set, but the cleaner integration is to set identity before activation.
 5. Do not call `user.engaged()` or `user.inactive()` in new integrations.
 
 ## Decision 5: Billing
@@ -223,6 +224,22 @@ Browser SDK defaults already capture:
 
 Add custom `track()` calls only for meaningful product actions that are not covered by automatic capture or connected integrations. Use properties for useful context, not PII or secrets.
 
+Browser example:
+
+```ts
+outlit.track("project_created", { template: "blank" })
+```
+
+Server example:
+
+```ts
+outlit.track({
+  customerId: "cust_123",
+  eventName: "workspace_synced",
+  properties: { provider: "github" },
+})
+```
+
 Calendar embed limitation: Cal.com and Calendly client events do not expose attendee email/name. Use provider webhooks plus server `identify()` when booked-meeting identity matters.
 
 Hash-routed SPAs, `file://` routes, and Electron-style hash paths are handled by the core path extractor; do not add custom path parsing unless the app has a special router.
@@ -258,6 +275,7 @@ outlit.track({
 outlit.identify({
   email: user.email,
   fingerprint: deviceId,
+  userId: user.id,
 })
 ```
 
@@ -320,7 +338,7 @@ Fetch docs as needed. Prefer docs over hardcoding long framework patterns, but a
 ### Activation missing or delayed
 
 - Call activation after identity is set.
-- In browsers, `user.activate()` can queue until `setUser()`/`identify()` provides identity, but the queue is bounded.
+- In browsers, `user.activate()` can queue until `setUser()`/`identify()` provides identity.
 - Do not use deprecated `engaged`/`inactive` calls; send product activity with `track()`.
 
 ## Key Principles

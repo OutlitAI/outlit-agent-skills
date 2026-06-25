@@ -2,8 +2,8 @@
 
 Available skills in this repository:
 
-- **[skills/outlit/SKILL.md](skills/outlit/SKILL.md)** — Unified Outlit access skill for customer intelligence work. Covers the `outlit` CLI, Outlit MCP/Pi tools, facts, source evidence, search, SQL analytics, setup, integrations, and notification actions.
+- **[skills/outlit/SKILL.md](skills/outlit/SKILL.md)** — Unified Outlit access skill for customer intelligence work. Covers the `outlit` CLI, MCP/Pi tools, source evidence, notifications, integration setup, SQL, customer lookups, users, workspace users, timelines, facts, search, and analytics.
 
-- **[skills/outlit-sdk/SKILL.md](skills/outlit-sdk/SKILL.md)** — Decision-tree-driven guide for integrating Outlit SDK. Covers browser frameworks, server runtimes, native/device tracking, desktop apps, Rust, customerId attribution, identity, consent, activation, billing lifecycle, analytics migrations, and troubleshooting.
+- **[skills/outlit-sdk/SKILL.md](skills/outlit-sdk/SKILL.md)** — Decision-tree-driven guide for integrating Outlit SDK. Covers web frameworks (React, Next.js, Vue, Nuxt, SvelteKit, Angular, Astro), server runtimes (Node.js, Express, Fastify), native JavaScript runtimes, desktop apps (Tauri, Electron), and Rust. Handles new installations, analytics migrations, identity, customerId attribution, consent management, activation events, billing lifecycle, and troubleshooting.
 
-Load the SDK skill when users need to integrate Outlit customer journey tracking. Load the Outlit skill when users need customer context or analytics through either the CLI or MCP.
+Load the SDK skill when users need to integrate Outlit customer journey tracking. Load the Outlit skill when users need customer context, notifications, integrations, or analytics through the CLI, MCP, Pi, or tool packages.
