@@ -12,6 +12,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Test packaging scripts
+        run: npm test
+
+      - name: Validate OpenClaw package output
+        run: |
+          npm run prepare:openclaw
+
+          if [ ! -f "dist/openclaw/outlit/SKILL.md" ]; then
+            echo "ERROR: OpenClaw package missing SKILL.md"
+            exit 1
+          fi
+
+          if [ -f "dist/openclaw/outlit/agents/openai.yaml" ]; then
+            echo "ERROR: OpenAI metadata should not be in OpenClaw package output"
+            exit 1
+          fi
+
+          echo "OK: OpenClaw package output valid"
+
       - name: Validate skills
         run: bash scripts/validate-skills.sh
 

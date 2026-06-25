@@ -1,0 +1,9 @@
+{
+  "name": "outlit-agent-skills",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare:openclaw": "node scripts/prepare-openclaw-skill.mjs",
+    "test": "node --test scripts/*.test.mjs && bash scripts/validate-skills.sh"
+  }
+}

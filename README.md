@@ -18,7 +18,7 @@ outlit onboard --agent codex --json
 
 `outlit onboard` can be the first command: it starts browser auth when no API key is available, installs the Outlit skill for the selected agent, checks integration readiness, and prints next actions.
 
-After onboarding, agents should inspect integration capabilities before setup. Follow-up commands stay after the provider name, such as `outlit integrations setup hubspot mappings --json`, `outlit integrations setup salesforce mappings --json`, or `outlit integrations setup pylon webhooks --json`. `--session` is only for browser setup polling.
+After onboarding, agents should inspect integration capabilities before setup. Follow-up commands stay after the provider name, such as `outlit integrations setup hubspot mappings --json` or `outlit integrations setup pylon webhooks --json`. `--session` is only for browser setup polling.
 
 Or directly with the Skills CLI:
 
@@ -34,12 +34,22 @@ Install `outlit-sdk` separately when you need tracking or instrumentation help.
 
 | Skill | Description |
 |-------|-------------|
-| outlit | Customer intelligence through the Outlit CLI, MCP/Pi tools, SQL, source evidence, and notifications |
-| outlit-sdk | Outlit SDK integration for product, website, server, native, identity, activation, and billing tracking |
+| outlit | Customer intelligence through the Outlit CLI, MCP/Pi tools, SQL, source evidence, workspace users, notifications, and integration setup |
+| outlit-sdk | Outlit SDK integration for browser, server, native, desktop, identity, consent, activation, customerId attribution, and billing tracking |
 
 ## Usage
 
 Once installed, agents automatically use these skills when working on Outlit-related tasks.
+
+## OpenClaw / ClawHub packaging
+
+The source skill can keep platform-specific metadata such as `agents/openai.yaml`. Before publishing
+the Outlit skill to ClawHub, generate a clean OpenClaw upload folder:
+
+```sh
+npm run prepare:openclaw
+clawhub publish dist/openclaw/outlit --version <semver>
+```
 
 ## License
 
