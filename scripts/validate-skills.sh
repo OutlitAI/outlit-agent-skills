@@ -88,6 +88,19 @@ if sdk_regular_files != [Path("skills/outlit-sdk/SKILL.md")]:
         + ", ".join(str(path) for path in sdk_regular_files)
     )
 
+skills_sh = Path("skills.sh.json")
+if skills_sh.exists():
+    import json
+
+    with skills_sh.open(encoding="utf-8") as file:
+        config = json.load(file)
+    known_skill_dirs = {path.parent.name for path in Path("skills").glob("*/SKILL.md")}
+    for index, grouping in enumerate(config.get("groupings", []), start=1):
+        title = grouping.get("title", f"grouping #{index}")
+        for skill_name in grouping.get("skills", []):
+            if skill_name not in known_skill_dirs:
+                errors.append(f"{skills_sh}: grouping {title!r} references unknown skill {skill_name!r}")
+
 if errors:
     for error in errors:
         print(f"ERROR: {error}")
