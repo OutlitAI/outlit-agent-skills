@@ -1,0 +1,16 @@
+{
+  "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
+  "notGrouped": "bottom",
+  "groupings": [
+    {
+      "title": "Customer Intelligence",
+      "description": "Skills for querying Outlit customer context, evidence, timelines, revenue, churn risk, notifications, and analytics.",
+      "skills": ["outlit"]
+    },
+    {
+      "title": "SDK Integrations",
+      "description": "Skills for adding Outlit browser, server, native, desktop, identity, consent, activation, billing, and event tracking.",
+      "skills": ["outlit-sdk"]
+    }
+  ]
+}

@@ -1,0 +1,138 @@
+name: Publish Skills
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "skills/**"
+      - "scripts/prepare-openclaw-skill.mjs"
+      - "scripts/prepare-openclaw-skill.test.mjs"
+      - "scripts/detect-publish-skills.mjs"
+      - "scripts/detect-publish-skills.test.mjs"
+      - "package.json"
+      - "skills.sh.json"
+      - ".github/workflows/publish-skills.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-skills-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      has_changes: ${{ steps.matrix.outputs.has_changes }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Collect changed files
+        id: changed
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            printf '%s\n' \
+              "skills/outlit/SKILL.md" \
+              "skills/outlit-sdk/SKILL.md" > changed-files.txt
+          else
+            BEFORE="${{ github.event.before }}"
+            if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+              git diff --name-only "${{ github.sha }}^" "${{ github.sha }}" > changed-files.txt
+            else
+              git diff --name-only "$BEFORE" "${{ github.sha }}" > changed-files.txt
+            fi
+          fi
+
+          echo "Changed files:"
+          cat changed-files.txt
+
+      - name: Build publish matrix
+        id: matrix
+        run: |
+          MATRIX="$(node scripts/detect-publish-skills.mjs < changed-files.txt)"
+          COUNT="$(node -e 'const m = JSON.parse(process.argv[1]); console.log(m.include.length)' "$MATRIX")"
+
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    needs: detect
+    if: needs.detect.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate skills
+        run: npm test
+
+      - name: Prepare OpenClaw artifact
+        run: npm run prepare:openclaw
+
+      - name: Validate skills.sh discovery
+        run: npx -y skills@latest add . --list
+
+      - name: Publish to ClawHub
+        id: clawhub
+        env:
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
+        run: |
+          if [ -z "$CLAWHUB_TOKEN" ]; then
+            echo "CLAWHUB_TOKEN secret is required" >&2
+            exit 1
+          fi
+
+          npx -y clawhub@0.23.0 --no-input login \
+            --token "$CLAWHUB_TOKEN" \
+            --label "github-actions-${{ github.repository }}"
+
+          PUBLISH_JSON="$(npx -y clawhub@0.23.0 --no-input publish "${{ matrix.path }}" \
+            --owner leo-paz \
+            --slug "${{ matrix.slug }}" \
+            --name "${{ matrix.name }}" \
+            --changelog "Automated publish from ${{ github.repository }}@${{ github.sha }} after merged skill changes." \
+            --source-repo "${{ github.repository }}" \
+            --source-commit "${{ github.sha }}" \
+            --source-ref "${{ github.ref_name }}" \
+            --source-path "${{ matrix.sourcePath }}" \
+            --json)"
+
+          echo "$PUBLISH_JSON"
+          VERSION="$(node -e 'const p = JSON.parse(process.argv[1]); console.log(p.version)' "$PUBLISH_JSON")"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub release for skills.sh and Hermes consumers
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ matrix.slug }}-v${{ steps.clawhub.outputs.version }}"
+          TITLE="${{ matrix.name }} ${{ steps.clawhub.outputs.version }}"
+          NOTES="Automated skill release for ${{ matrix.name }}.
+
+          ClawHub slug: ${{ matrix.slug }}
+          Source path: ${{ matrix.sourcePath }}
+          Commit: ${{ github.sha }}
+
+          This tag/release gives GitHub-based skill consumers, skills.sh tooling, and Hermes GitHub/tap installs a stable versioned ref."
+
+          gh release create "$TAG" \
+            --target "${{ github.sha }}" \
+            --title "$TITLE" \
+            --notes "$NOTES"
