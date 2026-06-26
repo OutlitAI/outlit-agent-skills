@@ -20,7 +20,6 @@ const SKILLS = [
 
 const OUTLIT_PACKAGING_FILES = new Set([
   "scripts/prepare-openclaw-skill.mjs",
-  "scripts/prepare-openclaw-skill.test.mjs",
 ]);
 
 export function detectPublishSkills(files) {

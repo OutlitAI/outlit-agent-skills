@@ -38,10 +38,18 @@ async function validateSource(source) {
 }
 
 function validateTarget(source, target) {
-  const relativeTarget = relative(source, target);
-  if (!relativeTarget || (!relativeTarget.startsWith("..") && !isAbsolute(relativeTarget))) {
+  if (isWithinOrSame(target, source)) {
+    throw new Error("Target directory must not be the source directory or one of its ancestors");
+  }
+
+  if (isWithinOrSame(source, target)) {
     throw new Error("Target directory must not be inside the source skill directory");
   }
+}
+
+function isWithinOrSame(parent, child) {
+  const relativePath = relative(parent, child);
+  return !relativePath || (!relativePath.startsWith("..") && !isAbsolute(relativePath));
 }
 
 async function copySkillFiles(source, target) {
