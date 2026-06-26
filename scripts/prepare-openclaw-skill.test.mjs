@@ -64,3 +64,23 @@ test("prepareOpenClawSkill rejects a source without SKILL.md", async () => {
 
   await rm(root, { recursive: true, force: true });
 });
+
+test("prepareOpenClawSkill rejects target directories that would delete the source tree", async () => {
+  const root = await makeTempDir();
+  const source = join(root, "skills", "outlit");
+
+  await mkdir(source, { recursive: true });
+  await writeFile(join(source, "SKILL.md"), "# Outlit\n", "utf8");
+
+  await assert.rejects(
+    () => prepareOpenClawSkill({ sourceDir: source, targetDir: root }),
+    /Target directory must not be the source directory or one of its ancestors/,
+  );
+
+  await assert.rejects(
+    () => prepareOpenClawSkill({ sourceDir: source, targetDir: join(root, "skills") }),
+    /Target directory must not be the source directory or one of its ancestors/,
+  );
+
+  await rm(root, { recursive: true, force: true });
+});

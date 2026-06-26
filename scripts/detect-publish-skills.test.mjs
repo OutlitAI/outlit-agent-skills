@@ -32,6 +32,16 @@ test("detectPublishSkills maps outlit skill and packaging changes", () => {
   ]);
 });
 
+test("detectPublishSkills ignores packaging test-only changes", () => {
+  assert.deepEqual(
+    detectPublishSkills([
+      "scripts/prepare-openclaw-skill.test.mjs",
+      "scripts/detect-publish-skills.test.mjs",
+    ]),
+    [],
+  );
+});
+
 test("detectPublishSkills maps sdk skill changes and deduplicates output", () => {
   assert.deepEqual(
     detectPublishSkills([

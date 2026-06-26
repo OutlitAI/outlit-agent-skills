@@ -41,7 +41,7 @@ Use the `outlit-sdk` skill instead when the user wants to instrument an applicat
 |------|-------------|-----|
 | Browse customers | `outlit_list_customers` | `outlit customers list` |
 | Browse users/contacts | `outlit_list_users` | `outlit users list` |
-| Browse workspace users | `outlit_list_workspace_users` | `outlit ws-users list` |
+| Browse workspace users | `outlit_list_workspace_users` | - |
 | Single account profile | `outlit_get_customer` | `outlit customers get` |
 | Chronology | `outlit_get_timeline` | `outlit customers timeline` |
 | Known structured signals | `outlit_list_facts` | `outlit facts list` |
@@ -85,7 +85,7 @@ Notification tools are action tools. Use them only when the user explicitly asks
 - CLI: `outlit notify --title "..." --markdown "..."`.
 - File input: `--payload-file <path>`, `--markdown-file <path>`.
 - Optional context: `--message`, `--severity low|medium|high`, `--source`, `--subject`.
-- Destination IDs: `--destination-id <uuid>` or comma-separated UUIDs. Omit destination IDs to use the organization's default notifier.
+- Destinations: `--destination slack` for the default Slack notifier, or `--destination slack:<channelId>` for a specific channel. Use comma-separated destinations for multiple targets.
 - Markdown is the preferred human-readable body; payload can carry JSON-serializable context.
 
 Do not notify by default just because an analysis found risk.
