@@ -9,7 +9,7 @@
     },
     {
       "title": "SDK Integrations",
-      "description": "Skills for adding Outlit browser, server, native, desktop, identity, consent, activation, billing, and event tracking.",
+      "description": "Skills for adding Outlit browser, server, native, desktop, identity, consent, product activity, activation-event configuration, verified billing integrations, and event tracking.",
       "skills": ["outlit-sdk"]
     }
   ]

@@ -1,5 +1,7 @@
 # Outlit SDK Skill Redesign
 
+> Historical design record: lifecycle and billing SDK methods described below are superseded. Current integrations send ordinary identity and product activity events, configure activation in Outlit Core, and obtain billing status from verified billing integrations. See `skills/outlit-sdk/SKILL.md` for current guidance.
+
 ## Problem
 
 The current skill is a ~65KB reference dump with templates, scripts, and duplicated docs that drift from the official docs at `docs.outlit.ai`. It follows 8 linear steps with no branching, makes assumptions instead of asking the user, and doesn't cover Rust, desktop, mobile, or existing analytics migrations.

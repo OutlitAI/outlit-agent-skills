@@ -35,7 +35,7 @@ Install `outlit-sdk` separately when you need tracking or instrumentation help.
 | Skill | Description |
 |-------|-------------|
 | outlit | Customer intelligence through the Outlit CLI, MCP/Pi tools, SQL, source evidence, workspace users, notifications, and integration setup |
-| outlit-sdk | Outlit SDK integration for browser, server, native, desktop, identity, consent, activation, customerId attribution, and billing tracking |
+| outlit-sdk | Outlit SDK integration for browser, server, native, desktop, identity, consent, product activity, activation-event configuration, customerId attribution, and verified billing integrations |
 
 ## Usage
 
