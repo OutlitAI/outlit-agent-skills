@@ -1,6 +1,6 @@
 ---
 name: outlit
-description: Use when accessing Outlit customer intelligence through the `outlit` CLI, Outlit MCP tools, Pi tools, or @outlit/tools, including customer lookups, users, workspace users, timelines, facts, source evidence, semantic search, revenue, churn, SQL analytics, setup, notifications, integrations, or troubleshooting agent access.
+description: Use when accessing Outlit customer intelligence through the `outlit` CLI, Outlit MCP tools, Pi tools, or @outlit/tools, including customer lookups, users, workspace users, timelines, facts, source evidence, semantic search, revenue, churn, SQL analytics, setup, integrations, or troubleshooting agent access.
 metadata:
   openclaw:
     homepage: "https://outlit.ai"
@@ -41,7 +41,7 @@ Use the `outlit-sdk` skill instead when the user wants to instrument an applicat
 |------|-------------|-----|
 | Browse customers | `outlit_list_customers` | `outlit customers list` |
 | Browse users/contacts | `outlit_list_users` | `outlit users list` |
-| Browse workspace users | `outlit_list_workspace_users` | - |
+| Browse workspace users | `outlit_list_workspace_users` | `outlit ws-users list` |
 | Single account profile | `outlit_get_customer` | `outlit customers get` |
 | Chronology | `outlit_get_timeline` | `outlit customers timeline` |
 | Known structured signals | `outlit_list_facts` | `outlit facts list` |
@@ -50,7 +50,7 @@ Use the `outlit-sdk` skill instead when the user wants to instrument an applicat
 | Exact source artifact | `outlit_get_source` | `outlit sources get` |
 | Thematic/fuzzy question | `outlit_search_customer_context` | `outlit search` |
 | Custom analytics | `outlit_schema` + `outlit_query` | `outlit schema` + `outlit sql` |
-| Send/post a notification | `outlit_send_notification` | `outlit notify` |
+| Manage customer ownership/access | `outlit_assign_customer_owner`, `outlit_grant_customer_access`, `outlit_update_customer_access`, `outlit_revoke_customer_access` | `outlit customers owner set`, `outlit customers grant`, `outlit customers revoke` |
 | Integration status/setup | Use CLI unless explicit tools exist | `outlit integrations capabilities/setup/status` |
 
 Use customer lookups before SQL. SQL is for aggregates, cohorts, joins, time-series checks, and custom reporting.
@@ -64,6 +64,7 @@ Use customer lookups before SQL. SQL is for aggregates, cohorts, joins, time-ser
 - If data is sparse, stale, or inconsistent, say how that affects confidence.
 - Request only the fields or include sections needed.
 - Results often include timestamps and source attribution; use them.
+- Use customer collaboration actions only when the user explicitly asks to assign an owner or change customer access. CLI `customers grant` idempotently grants or changes access; `customers revoke` removes access.
 
 ## Facts vs Search vs Sources vs Timeline
 
@@ -72,23 +73,11 @@ Use customer lookups before SQL. SQL is for aggregates, cohorts, joins, time-ser
 - Do not request anomaly-detector fact types as public filters, such as `CORE_ACTION_DECAY`, `CADENCE_BREAK`, `QUIET_ACCOUNT`, `ACTIVATION_RATE_DROP`, or `FUNNEL_DROPOFF`.
 - Use `facts get` when you already have a fact ID and need the canonical payload or best-effort `evidence`.
 - Use `search` for a specific question/theme, including cross-customer questions. Search returns grouped `source` and `fact` artifacts, not raw vector chunks.
-- Use `sources list` when you need deterministic enumeration of emails, calls, calendar events, support tickets, or CRM opportunities.
+- Use `sources list` when you need deterministic enumeration of emails, calls, calendar events, support tickets, CRM opportunities, or Slack messages.
 - Use `sources get` when a fact/search/list result points to a concrete source and you need the exact artifact.
 - Use `timeline` when order, recency, or sequence matters.
 
-Supported generic source types are `EMAIL`, `CALL`, `CALENDAR_EVENT`, `SUPPORT_TICKET`, and `OPPORTUNITY`. `CRM` and `CRM_OPPORTUNITY` are accepted aliases for opportunity filters.
-
-## Notifications
-
-Notification tools are action tools. Use them only when the user explicitly asks you to send, post, or notify.
-
-- CLI: `outlit notify --title "..." --markdown "..."`.
-- File input: `--payload-file <path>`, `--markdown-file <path>`.
-- Optional context: `--message`, `--severity low|medium|high`, `--source`, `--subject`.
-- Destinations: `--destination slack` for the default Slack notifier, or `--destination slack:<channelId>` for a specific channel. Use comma-separated destinations for multiple targets.
-- Markdown is the preferred human-readable body; payload can carry JSON-serializable context.
-
-Do not notify by default just because an analysis found risk.
+Supported generic source types are `EMAIL`, `CALL`, `CALENDAR_EVENT`, `SUPPORT_TICKET`, `OPPORTUNITY`, and `SLACK`. `CRM` and `CRM_OPPORTUNITY` are accepted aliases for opportunity filters.
 
 ## SQL Rules
 
@@ -185,7 +174,7 @@ export OUTLIT_API_KEY=ok_your_api_key
 pi
 ```
 
-`@outlit/pi` registers default customer intelligence tools and notification action tools. SQL tools are available but not enabled by default; use analytical/custom toolsets only for agents that should run read-only SQL.
+`@outlit/pi` registers default customer intelligence tools. SQL tools are available but not enabled by default; use analytical/custom toolsets only for agents that should run read-only SQL.
 
 For custom TypeScript tool clients, use `@outlit/tools` and its exported `customerToolContracts`, `defaultAgentToolNames`, `actionToolNames`, `sqlToolNames`, `analyticalAgentToolNames`, and `allCustomerToolNames`.
 
@@ -256,4 +245,3 @@ If capabilities mark a follow-up as unsupported by the CLI, use the Outlit platf
 - "What pricing objections show up in conversations?"
 - "List recent opportunity sources for Acme."
 - "Which channels are driving revenue?"
-- "Notify Slack with the high-confidence expansion candidates."
