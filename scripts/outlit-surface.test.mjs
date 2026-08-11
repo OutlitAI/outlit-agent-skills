@@ -21,3 +21,28 @@ test("Outlit docs do not advertise the retired notification action surface", () 
     assert.doesNotMatch(doc, /\bnotifications?\b/i);
   }
 });
+
+test("Outlit docs reference the current @outlit/tools public exports", () => {
+  for (const exportName of [
+    "customerToolContracts",
+    "defaultAgentToolNames",
+    "actionToolNames",
+    "analyticalAgentToolNames",
+    "allCustomerToolNames",
+  ]) {
+    assert.doesNotMatch(skill, new RegExp(`\\b${exportName}\\b`));
+  }
+
+  for (const exportName of [
+    "publicToolContracts",
+    "publicToolNames",
+    "consumerToolPolicies",
+    "defaultToolNames",
+    "analyticalToolNames",
+    "cliToolNames",
+    "allPublicToolNames",
+    "sqlToolNames",
+  ]) {
+    assert.match(skill, new RegExp(`\\b${exportName}\\b`));
+  }
+});

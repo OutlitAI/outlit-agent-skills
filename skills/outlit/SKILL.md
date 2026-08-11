@@ -176,7 +176,7 @@ pi
 
 `@outlit/pi` registers default customer intelligence tools. SQL tools are available but not enabled by default; use analytical/custom toolsets only for agents that should run read-only SQL.
 
-For custom TypeScript tool clients, use `@outlit/tools` and its exported `customerToolContracts`, `defaultAgentToolNames`, `actionToolNames`, `sqlToolNames`, `analyticalAgentToolNames`, and `allCustomerToolNames`.
+For custom TypeScript tool clients, use `@outlit/tools` and its exported `publicToolContracts`, `publicToolNames`, `consumerToolPolicies`, `defaultToolNames`, `analyticalToolNames`, `cliToolNames`, `allPublicToolNames`, and `sqlToolNames`.
 
 ## Integrations
 
