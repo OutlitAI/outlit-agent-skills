@@ -4,7 +4,7 @@
   "groupings": [
     {
       "title": "Customer Intelligence",
-      "description": "Skills for querying Outlit customer context, evidence, timelines, revenue, churn risk, notifications, and analytics.",
+      "description": "Skills for querying Outlit customer context, evidence, timelines, revenue, churn risk, and analytics.",
       "skills": ["outlit"]
     },
     {

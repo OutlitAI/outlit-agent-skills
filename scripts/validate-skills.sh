@@ -54,7 +54,7 @@ for skill in sorted(Path("skills").glob("*/SKILL.md")):
         if len(desc) > 500:
             errors.append(f"{skill}: description should stay under 500 characters")
 
-for md in sorted(Path(".").rglob("*.md")):
+for md in sorted(Path("skills").rglob("*.md")):
     text = md.read_text(encoding="utf-8")
     for match in re.finditer(r"\[[^\]]+\]\(([^)]+)\)", text):
         target = match.group(1).strip()
