@@ -1,5 +1,5 @@
 {
-  "name": "outlit-agent-skills",
+  "name": "@outlit/skills",
   "private": true,
   "type": "module",
   "scripts": {

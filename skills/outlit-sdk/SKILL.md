@@ -344,5 +344,5 @@ outlit setup skills
 Or with the Skills CLI:
 
 ```sh
-npx -y skills add https://github.com/OutlitAI/outlit-agent-skills --skill outlit-sdk -g
+npx -y skills add OutlitAI/skills --skill outlit-sdk -g
 ```

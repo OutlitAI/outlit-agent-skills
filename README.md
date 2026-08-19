@@ -23,9 +23,9 @@ After onboarding, agents should inspect integration capabilities before setup. F
 Or directly with the Skills CLI:
 
 ```sh
-npx -y skills add https://github.com/OutlitAI/outlit-agent-skills --skill outlit -g
+npx -y skills add OutlitAI/skills --skill outlit -g
 # or
-bunx skills add https://github.com/OutlitAI/outlit-agent-skills --skill outlit -g
+bunx skills add OutlitAI/skills --skill outlit -g
 ```
 
 Install `outlit-sdk` separately when you need tracking or instrumentation help.
