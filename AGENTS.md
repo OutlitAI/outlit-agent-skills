@@ -1,4 +1,4 @@
-# Outlit Agent Skills
+# Outlit Skills
 
 Available skills in this repository:
 
