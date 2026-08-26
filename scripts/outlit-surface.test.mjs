@@ -54,6 +54,16 @@ test("Outlit integration guidance matches the current secure CLI", () => {
 });
 
 test("Outlit facts guidance covers current public fact filters and contact transitions", () => {
+  const factTypesLine = skill
+    .split("\n")
+    .find((line) => line.startsWith("- Public `factTypes` filters accept"));
+  const factCategoriesLine = skill
+    .split("\n")
+    .find((line) => line.startsWith("- Public `factCategories` filters accept"));
+
+  assert.ok(factTypesLine, "missing public factTypes filter list");
+  assert.ok(factCategoriesLine, "missing public factCategories filter list");
+
   for (const factType of [
     "CUSTOM",
     "COMPANY_CHANGE",
@@ -76,14 +86,15 @@ test("Outlit facts guidance covers current public fact filters and contact trans
     "CONTACT_POSITION_CHANGE",
     "CONTACT_DISENGAGEMENT",
   ]) {
-    assert.match(skill, new RegExp(`\\b${factType}\\b`));
+    assert.match(factTypesLine, new RegExp(`\\b${factType}\\b`));
   }
 
-  assert.match(skill, /`MEMORY`, `RELATIONSHIP`, and `CUSTOM`/);
+  assert.match(factCategoriesLine, /`MEMORY`, `RELATIONSHIP`, and `CUSTOM`/);
   assert.match(skill, /left or is leaving/);
   assert.match(skill, /title, department, team, or professional responsibility/);
   assert.match(skill, /stopped participating, organizing, responding, or owning/);
   assert.match(skill, /single unanswered message.*insufficient/);
+  assert.match(skill, /`CONTACT_DISENGAGEMENT`.*does not currently wake Churn/);
   assert.match(skill, /`CHAMPION_RISK`.*historical.*readable/i);
 });
 

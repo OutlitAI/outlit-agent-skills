@@ -90,7 +90,7 @@ Use customer lookups before SQL. SQL is for aggregates, cohorts, joins, time-ser
 - Contact-transition facts are neutral, source-backed observations about a known contact:
   - `CONTACT_DEPARTURE`: the contact left or is leaving the customer's company. Exclude temporary leave, ordinary out-of-office notices, candidates, and people discussed as part of the customer's own business.
   - `CONTACT_POSITION_CHANGE`: the contact changed title, department, team, or professional responsibility at the customer's company. This is not an Outlit relationship-role change; use `CONTACT_DEPARTURE` if the person left the company.
-  - `CONTACT_DISENGAGEMENT`: the contact explicitly stopped participating, organizing, responding, or owning the initiative. A single unanswered message, scheduling friction, or an out-of-office notice is insufficient.
+  - `CONTACT_DISENGAGEMENT`: the contact explicitly stopped participating, organizing, responding, or owning the initiative. A single unanswered message, scheduling friction, or an out-of-office notice is insufficient. It remains extractable but does not currently wake Churn; current contact-transition Churn signals cover only confirmed departures and position changes.
 - `CHAMPION_RISK` remains historical and readable, but new extraction uses the specific contact-transition types instead of inferring a broad relationship judgment.
 - Do not request internal anomaly-detector types such as `CORE_ACTION_DECAY`, `CADENCE_BREAK`, `QUIET_ACCOUNT`, `ACTIVATION_RATE_DROP`, or `FUNNEL_DROPOFF` as public fact filters.
 - Use `facts get` with a known fact ID for the canonical payload or best-effort `evidence`.
