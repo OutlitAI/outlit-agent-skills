@@ -85,7 +85,13 @@ Use customer lookups before SQL. SQL is for aggregates, cohorts, joins, time-ser
 ## Facts, Search, Sources, and Timeline
 
 - Use `facts list` to browse known structured intelligence for one account.
-- Public memory fact types include `CHURN_RISK`, `EXPANSION`, `SENTIMENT`, `BUDGET`, `REQUIREMENTS`, `PRODUCT_USAGE`, `CHAMPION_RISK`, and `CONTACT_INFO`.
+- Public `factTypes` filters accept `CUSTOM`, `COMPANY_CHANGE`, `FUNDING_REVENUE`, `TECHNOLOGY`, `STRATEGY`, `COMPETITIVE`, `SENTIMENT`, `CHAMPION_RISK`, `EXPANSION`, `CHURN_RISK`, `TIMELINE`, `BUDGET`, `DECISION_MAKER`, `REQUIREMENTS`, `PRODUCT_USAGE`, `CONTACT_INFO`, `CONTACT_PREFERENCE`, `CONTACT_DEPARTURE`, `CONTACT_POSITION_CHANGE`, and `CONTACT_DISENGAGEMENT`.
+- Public `factCategories` filters accept `MEMORY`, `RELATIONSHIP`, and `CUSTOM`.
+- Contact-transition facts are neutral, source-backed observations about a known contact:
+  - `CONTACT_DEPARTURE`: the contact left or is leaving the customer's company. Exclude temporary leave, ordinary out-of-office notices, candidates, and people discussed as part of the customer's own business.
+  - `CONTACT_POSITION_CHANGE`: the contact changed title, department, team, or professional responsibility at the customer's company. This is not an Outlit relationship-role change; use `CONTACT_DEPARTURE` if the person left the company.
+  - `CONTACT_DISENGAGEMENT`: the contact explicitly stopped participating, organizing, responding, or owning the initiative. A single unanswered message, scheduling friction, or an out-of-office notice is insufficient.
+- `CHAMPION_RISK` remains historical and readable, but new extraction uses the specific contact-transition types instead of inferring a broad relationship judgment.
 - Do not request internal anomaly-detector types such as `CORE_ACTION_DECAY`, `CADENCE_BREAK`, `QUIET_ACCOUNT`, `ACTIVATION_RATE_DROP`, or `FUNNEL_DROPOFF` as public fact filters.
 - Use `facts get` with a known fact ID for the canonical payload or best-effort `evidence`.
 - Use `search` for a specific question or theme, including cross-customer questions. Search returns grouped source and fact artifacts, not raw vector chunks.

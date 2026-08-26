@@ -53,6 +53,40 @@ test("Outlit integration guidance matches the current secure CLI", () => {
   }
 });
 
+test("Outlit facts guidance covers current public fact filters and contact transitions", () => {
+  for (const factType of [
+    "CUSTOM",
+    "COMPANY_CHANGE",
+    "FUNDING_REVENUE",
+    "TECHNOLOGY",
+    "STRATEGY",
+    "COMPETITIVE",
+    "SENTIMENT",
+    "CHAMPION_RISK",
+    "EXPANSION",
+    "CHURN_RISK",
+    "TIMELINE",
+    "BUDGET",
+    "DECISION_MAKER",
+    "REQUIREMENTS",
+    "PRODUCT_USAGE",
+    "CONTACT_INFO",
+    "CONTACT_PREFERENCE",
+    "CONTACT_DEPARTURE",
+    "CONTACT_POSITION_CHANGE",
+    "CONTACT_DISENGAGEMENT",
+  ]) {
+    assert.match(skill, new RegExp(`\\b${factType}\\b`));
+  }
+
+  assert.match(skill, /`MEMORY`, `RELATIONSHIP`, and `CUSTOM`/);
+  assert.match(skill, /left or is leaving/);
+  assert.match(skill, /title, department, team, or professional responsibility/);
+  assert.match(skill, /stopped participating, organizing, responding, or owning/);
+  assert.match(skill, /single unanswered message.*insufficient/);
+  assert.match(skill, /`CHAMPION_RISK`.*historical.*readable/i);
+});
+
 test("Outlit authorization guidance includes the onboarding key preset", () => {
   assert.match(skill, /Personal CLI/);
   assert.match(skill, /creator-bound integration setup/);
