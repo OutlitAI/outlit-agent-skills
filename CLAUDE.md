@@ -1,5 +1,7 @@
 # Outlit Skills
 
+Read [AGENTS.md](AGENTS.md) for shared repository workflow and task scope before applying the guidance below.
+
 Available skills in this repository:
 
 - **[skills/outlit/SKILL.md](skills/outlit/SKILL.md)** — Unified Outlit access skill for customer intelligence work. Covers the `outlit` CLI, MCP/Pi tools, source evidence, integration setup, SQL, customer lookups, users, workspace users, timelines, facts, search, and analytics.
